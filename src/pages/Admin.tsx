@@ -47,9 +47,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { PlusCircle, Save, Users, X } from 'lucide-react';
+import { PlusCircle, Save, Users, X, Trash2 } from 'lucide-react';
 
 const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -63,6 +73,20 @@ const Admin = () => {
   const [addPouleDialogOpen, setAddPouleDialogOpen] = useState(false);
   const [addTeamDialogOpen, setAddTeamDialogOpen] = useState(false);
   
+  // Edit dialog states
+  const [editDisciplineDialogOpen, setEditDisciplineDialogOpen] = useState(false);
+  const [editLevelDialogOpen, setEditLevelDialogOpen] = useState(false);
+  const [editPouleDialogOpen, setEditPouleDialogOpen] = useState(false);
+  const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
+  
+  // Delete confirmation dialog state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  
+  // Edit/delete state
+  const [currentItemType, setCurrentItemType] = useState<'discipline' | 'level' | 'poule' | 'team' | null>(null);
+  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
+  const [currentParentId, setCurrentParentId] = useState<string | null>(null);
+  
   // Form states
   const [newDisciplineName, setNewDisciplineName] = useState('');
   const [newLevelName, setNewLevelName] = useState('');
@@ -73,6 +97,13 @@ const Admin = () => {
   const [player1Name, setPlayer1Name] = useState('');
   const [player2Name, setPlayer2Name] = useState('');
   const [pouleForTeam, setPouleForTeam] = useState('');
+  
+  // Edit form states
+  const [editDisciplineName, setEditDisciplineName] = useState('');
+  const [editLevelName, setEditLevelName] = useState('');
+  const [editPouleName, setEditPouleName] = useState('');
+  const [editPlayer1Name, setEditPlayer1Name] = useState('');
+  const [editPlayer2Name, setEditPlayer2Name] = useState('');
   
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -334,6 +365,296 @@ const Admin = () => {
     });
   };
 
+  // Handle edit functions
+  const handleEditItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
+    setCurrentItemType(type);
+    setCurrentItemId(id);
+    setCurrentParentId(parentId || null);
+    
+    // Find the item and set the edit form state
+    if (type === 'discipline') {
+      const discipline = tournament!.disciplines.find(d => d.id === id);
+      if (discipline) {
+        setEditDisciplineName(discipline.name);
+        setEditDisciplineDialogOpen(true);
+      }
+    } else if (type === 'level') {
+      const discipline = tournament!.disciplines.find(d => d.id === parentId);
+      if (discipline) {
+        const level = discipline.levels.find(l => l.id === id);
+        if (level) {
+          setEditLevelName(level.name);
+          setEditLevelDialogOpen(true);
+        }
+      }
+    } else if (type === 'poule') {
+      let foundPoule: Poule | null = null;
+      
+      // Find the poule
+      for (const discipline of tournament!.disciplines) {
+        for (const level of discipline.levels) {
+          if (level.id === parentId) {
+            foundPoule = level.poules.find(p => p.id === id) || null;
+            break;
+          }
+        }
+        if (foundPoule) break;
+      }
+      
+      if (foundPoule) {
+        setEditPouleName(foundPoule.name);
+        setEditPouleDialogOpen(true);
+      }
+    } else if (type === 'team') {
+      let foundTeam: Team | null = null;
+      
+      // Find the team
+      for (const discipline of tournament!.disciplines) {
+        for (const level of discipline.levels) {
+          for (const poule of level.poules) {
+            if (poule.id === parentId) {
+              foundTeam = poule.teams.find(t => t.id === id) || null;
+              break;
+            }
+          }
+          if (foundTeam) break;
+        }
+        if (foundTeam) break;
+      }
+      
+      if (foundTeam) {
+        setEditPlayer1Name(foundTeam.players[0].name);
+        setEditPlayer2Name(foundTeam.players[1].name);
+        setEditTeamDialogOpen(true);
+      }
+    }
+  };
+  
+  const handleEditConfirm = () => {
+    if (!tournament || !currentItemType || !currentItemId) return;
+    
+    const updatedTournament = { ...tournament };
+    
+    if (currentItemType === 'discipline') {
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === currentItemId);
+      if (disciplineIndex === -1) return;
+      
+      updatedTournament.disciplines[disciplineIndex].name = editDisciplineName.trim();
+      setEditDisciplineDialogOpen(false);
+      
+      toast({
+        title: "Discipline updated",
+        description: `The discipline has been renamed to ${editDisciplineName}`,
+      });
+    } else if (currentItemType === 'level') {
+      if (!currentParentId) return;
+      
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === currentParentId);
+      if (disciplineIndex === -1) return;
+      
+      const levelIndex = updatedTournament.disciplines[disciplineIndex].levels.findIndex(l => l.id === currentItemId);
+      if (levelIndex === -1) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].name = editLevelName.trim();
+      setEditLevelDialogOpen(false);
+      
+      toast({
+        title: "Level updated",
+        description: `The level has been renamed to ${editLevelName}`,
+      });
+    } else if (currentItemType === 'poule') {
+      if (!currentParentId) return;
+      
+      let foundPoule = false;
+      let disciplineIndex = -1;
+      let levelIndex = -1;
+      let pouleIndex = -1;
+      
+      // Find indices for the poule
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          if (level.id === currentParentId) {
+            pouleIndex = level.poules.findIndex(p => p.id === currentItemId);
+            if (pouleIndex !== -1) {
+              foundPoule = true;
+              disciplineIndex = i;
+              levelIndex = j;
+              break;
+            }
+          }
+        }
+        if (foundPoule) break;
+      }
+      
+      if (!foundPoule) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].name = editPouleName.trim();
+      setEditPouleDialogOpen(false);
+      
+      toast({
+        title: "Poule updated",
+        description: `The poule has been renamed to ${editPouleName}`,
+      });
+    } else if (currentItemType === 'team') {
+      if (!currentParentId) return;
+      
+      let foundTeam = false;
+      let disciplineIndex = -1;
+      let levelIndex = -1;
+      let pouleIndex = -1;
+      let teamIndex = -1;
+      
+      // Find indices for the team
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          for (let k = 0; k < level.poules.length; k++) {
+            const poule = level.poules[k];
+            if (poule.id === currentParentId) {
+              teamIndex = poule.teams.findIndex(t => t.id === currentItemId);
+              if (teamIndex !== -1) {
+                foundTeam = true;
+                disciplineIndex = i;
+                levelIndex = j;
+                pouleIndex = k;
+                break;
+              }
+            }
+          }
+          if (foundTeam) break;
+        }
+        if (foundTeam) break;
+      }
+      
+      if (!foundTeam) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams[teamIndex].players[0].name = editPlayer1Name.trim();
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams[teamIndex].players[1].name = editPlayer2Name.trim();
+      setEditTeamDialogOpen(false);
+      
+      toast({
+        title: "Team updated",
+        description: `The team players have been updated`,
+      });
+    }
+    
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
+    
+    // Reset current item
+    setCurrentItemType(null);
+    setCurrentItemId(null);
+    setCurrentParentId(null);
+  };
+  
+  // Handle delete functions
+  const handleDeleteItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
+    setCurrentItemType(type);
+    setCurrentItemId(id);
+    setCurrentParentId(parentId || null);
+    setDeleteConfirmOpen(true);
+  };
+  
+  const handleDeleteConfirm = () => {
+    if (!tournament || !currentItemType || !currentItemId) return;
+    
+    const updatedTournament = { ...tournament };
+    
+    if (currentItemType === 'discipline') {
+      updatedTournament.disciplines = updatedTournament.disciplines.filter(d => d.id !== currentItemId);
+      
+      toast({
+        title: "Discipline deleted",
+        description: "The discipline and all its levels, poules, and teams have been removed",
+      });
+    } else if (currentItemType === 'level') {
+      if (!currentParentId) return;
+      
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === currentParentId);
+      if (disciplineIndex === -1) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels = 
+        updatedTournament.disciplines[disciplineIndex].levels.filter(l => l.id !== currentItemId);
+      
+      toast({
+        title: "Level deleted",
+        description: "The level and all its poules and teams have been removed",
+      });
+    } else if (currentItemType === 'poule') {
+      if (!currentParentId) return;
+      
+      let levelFound = false;
+      
+      // Find and remove the poule
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          if (level.id === currentParentId) {
+            updatedTournament.disciplines[i].levels[j].poules = level.poules.filter(p => p.id !== currentItemId);
+            levelFound = true;
+            break;
+          }
+        }
+        if (levelFound) break;
+      }
+      
+      toast({
+        title: "Poule deleted",
+        description: "The poule and all its teams have been removed",
+      });
+    } else if (currentItemType === 'team') {
+      if (!currentParentId) return;
+      
+      let pouleFound = false;
+      
+      // Find and remove the team
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          for (let k = 0; k < level.poules.length; k++) {
+            const poule = level.poules[k];
+            if (poule.id === currentParentId) {
+              // Remove the team
+              const updatedTeams = poule.teams.filter(t => t.id !== currentItemId);
+              updatedTournament.disciplines[i].levels[j].poules[k].teams = updatedTeams;
+              
+              // Regenerate matches
+              const updatedPoule = {
+                ...updatedTournament.disciplines[i].levels[j].poules[k],
+                teams: updatedTeams
+              };
+              updatedTournament.disciplines[i].levels[j].poules[k].matches = generateMatches(updatedPoule);
+              
+              pouleFound = true;
+              break;
+            }
+          }
+          if (pouleFound) break;
+        }
+        if (pouleFound) break;
+      }
+      
+      toast({
+        title: "Team deleted",
+        description: "The team has been removed and matches have been regenerated",
+      });
+    }
+    
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
+    
+    // Reset dialogs and current item
+    setDeleteConfirmOpen(false);
+    setCurrentItemType(null);
+    setCurrentItemId(null);
+    setCurrentParentId(null);
+  };
+
   const handleNavigationChange = (newState: NavigationState) => {
     setNavigationState(newState);
   };
@@ -353,6 +674,28 @@ const Admin = () => {
     });
 
     return poules;
+  };
+
+  const getTeamsForPoule = (pouleId: string): { value: string; label: string; }[] => {
+    const teams: { value: string; label: string; }[] = [];
+
+    // Find the poule and get its teams
+    tournament?.disciplines.forEach(discipline => {
+      discipline.levels.forEach(level => {
+        level.poules.forEach(poule => {
+          if (poule.id === pouleId) {
+            poule.teams.forEach(team => {
+              teams.push({
+                value: team.id,
+                label: `${team.players[0].name} & ${team.players[1].name}`
+              });
+            });
+          }
+        });
+      });
+    });
+
+    return teams;
   };
 
   const handleLogout = () => {
@@ -624,6 +967,153 @@ const Admin = () => {
           </Card>
         </div>
         
+        {/* Edit Discipline Dialog */}
+        <Dialog open={editDisciplineDialogOpen} onOpenChange={setEditDisciplineDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Discipline</DialogTitle>
+              <DialogDescription>
+                Update the discipline name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Discipline name"
+                  value={editDisciplineName}
+                  onChange={(e) => setEditDisciplineName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDisciplineDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Edit Level Dialog */}
+        <Dialog open={editLevelDialogOpen} onOpenChange={setEditLevelDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Level</DialogTitle>
+              <DialogDescription>
+                Update the level name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Level name"
+                  value={editLevelName}
+                  onChange={(e) => setEditLevelName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditLevelDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Edit Poule Dialog */}
+        <Dialog open={editPouleDialogOpen} onOpenChange={setEditPouleDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Poule</DialogTitle>
+              <DialogDescription>
+                Update the poule name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Poule name"
+                  value={editPouleName}
+                  onChange={(e) => setEditPouleName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPouleDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Edit Team Dialog */}
+        <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Team</DialogTitle>
+              <DialogDescription>
+                Update player names.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 1 name"
+                  value={editPlayer1Name}
+                  onChange={(e) => setEditPlayer1Name(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 2 name"
+                  value={editPlayer2Name}
+                  onChange={(e) => setEditPlayer2Name(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditTeamDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {currentItemType === 'discipline' && "This will delete the discipline and all its levels, poules, and teams."}
+                {currentItemType === 'level' && "This will delete the level and all its poules and teams."}
+                {currentItemType === 'poule' && "This will delete the poule and all its teams."}
+                {currentItemType === 'team' && "This will delete the team and regenerate all matches in the poule."}
+                <br /><br />
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-pulse flex space-x-2">
@@ -641,6 +1131,8 @@ const Admin = () => {
                 isAdmin={true}
                 navigationState={navigationState}
                 onNavigationChange={handleNavigationChange}
+                onEditItem={handleEditItem}
+                onDeleteItem={handleDeleteItem}
               />
             </div>
           </>

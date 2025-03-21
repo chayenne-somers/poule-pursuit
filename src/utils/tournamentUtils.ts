@@ -1,4 +1,3 @@
-
 import { Match, Poule, Team } from "../types/tournament";
 
 // Generate a unique ID
@@ -82,6 +81,28 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
 
   // Convert to array and sort by points (descending)
   return Object.values(standings).sort((a, b) => b.points - a.points);
+};
+
+// Get winner of a poule
+export const getPouleWinner = (poule: Poule): Team | null => {
+  // Only return a winner if all matches are completed
+  const allMatchesCompleted = poule.matches.every(match => match.completed);
+  
+  if (!allMatchesCompleted || poule.matches.length === 0) {
+    return null;
+  }
+  
+  const standings = calculateStandings(poule);
+  
+  // If there are standings and the first team has more points than the second
+  if (standings.length > 1 && standings[0].points > standings[1].points) {
+    return standings[0].team;
+  } else if (standings.length === 1) {
+    // If there's only one team
+    return standings[0].team;
+  }
+  
+  return null;
 };
 
 // Local storage helpers
