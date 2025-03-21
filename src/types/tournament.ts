@@ -1,0 +1,63 @@
+// Player type
+export interface Player {
+  id: string;
+  name: string;
+}
+
+// Team type
+export interface Team {
+  id: string;
+  players: [Player, Player];
+}
+
+// Match type
+export interface Match {
+  id: string;
+  teamA: Team;
+  teamB: Team;
+  scoreA?: number;
+  scoreB?: number;
+  completed: boolean;
+  order: number;
+}
+
+// Poule type
+export interface Poule {
+  id: string;
+  name: string;
+  teams: Team[];
+  matches: Match[];
+}
+
+// Level type
+export interface Level {
+  id: string;
+  name: string; // "1", "2", "3", "4", "4+"
+  poules: Poule[];
+}
+
+// Discipline type
+export interface Discipline {
+  id: string;
+  name: string; // "Dames dubbel", "Heren dubbel", "Gemengd dubbel"
+  levels: Level[];
+}
+
+// Tournament type
+export interface Tournament {
+  disciplines: Discipline[];
+}
+
+// User type for authentication
+export interface User {
+  id: string;
+  username: string;
+  isAdmin: boolean;
+}
+
+// Navigation state to keep track of current view
+export interface NavigationState {
+  selectedDiscipline?: string;
+  selectedLevel?: string;
+  selectedPoule?: string;
+}
