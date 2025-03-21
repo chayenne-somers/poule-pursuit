@@ -1,5 +1,5 @@
 
-import { Match, Poule, Team, SetResult } from "../types/tournament";
+import { Match, Poule, Team, SetResult, Tournament, Discipline, Level } from "../types/tournament";
 
 // Generate a unique ID
 export const generateId = (): string => {
@@ -8,7 +8,7 @@ export const generateId = (): string => {
 
 // Generate all matches for a poule
 export const generateMatches = (poule: Poule): Match[] => {
-  const teams = poule.teams;
+  const teams = poule.teams || [];
   const matches: Match[] = [];
   let orderCounter = 1;
 
@@ -47,6 +47,11 @@ export interface TeamStanding {
 }
 
 export const calculateStandings = (poule: Poule): TeamStanding[] => {
+  // Safely handle undefined teams or matches
+  if (!poule || !poule.teams || !poule.matches) {
+    return [];
+  }
+  
   const standings: Record<string, TeamStanding> = {};
 
   // Initialize standings for all teams
@@ -151,6 +156,11 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
 
 // Get winner of a poule
 export const getPouleWinner = (poule: Poule): Team | null => {
+  // Handle undefined case
+  if (!poule || !poule.matches) {
+    return null;
+  }
+  
   // Only return a winner if all matches are completed
   const allMatchesCompleted = poule.matches.every(match => match.completed);
   
@@ -169,13 +179,20 @@ export const getPouleWinner = (poule: Poule): Team | null => {
 };
 
 // Local storage helpers
-export const saveTournament = (tournament: any): void => {
+export const saveTournament = (tournament: Tournament): void => {
   localStorage.setItem('tournament', JSON.stringify(tournament));
 };
 
-export const loadTournament = (): any => {
+export const loadTournament = (): Tournament | null => {
   const data = localStorage.getItem('tournament');
-  return data ? JSON.parse(data) : null;
+  if (!data) return null;
+  
+  try {
+    return JSON.parse(data) as Tournament;
+  } catch (error) {
+    console.error("Error parsing tournament data:", error);
+    return null;
+  }
 };
 
 export const saveAdminCredentials = (username: string, password: string): void => {
@@ -214,7 +231,8 @@ export const initializeTournament = () => {
     ];
   });
 
-  saveTournament({ disciplines });
+  const tournament: Tournament = { disciplines };
+  saveTournament(tournament);
 
   // Initialize admin credentials if they don't exist
   if (!localStorage.getItem('adminCredentials')) {
