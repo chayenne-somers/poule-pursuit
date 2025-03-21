@@ -1,3 +1,4 @@
+
 // Player type
 export interface Player {
   id: string;
@@ -10,13 +11,18 @@ export interface Team {
   players: [Player, Player];
 }
 
+// Set result type
+export interface SetResult {
+  scoreA: number;
+  scoreB: number;
+}
+
 // Match type
 export interface Match {
   id: string;
   teamA: Team;
   teamB: Team;
-  scoreA?: number;
-  scoreB?: number;
+  sets: SetResult[];
   completed: boolean;
   order: number;
 }

@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Discipline, Level, Poule, NavigationState } from '@/types/tournament';
@@ -67,7 +66,7 @@ const TournamentStructure = ({
       <div className="mb-8">
         <Tabs defaultValue={selectedDiscipline} onValueChange={handleDisciplineChange}>
           <div className="border-b">
-            <ScrollArea orientation="horizontal" className="w-full overflow-auto pb-2">
+            <ScrollArea className="w-full overflow-auto pb-2">
               <TabsList className="inline-flex h-14 items-center justify-start rounded-none bg-transparent p-0">
                 {disciplines.map((discipline) => (
                   <TabsTrigger
