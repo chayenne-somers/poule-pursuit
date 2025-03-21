@@ -1,5 +1,4 @@
-
-import { Match, Poule, Team, SetResult, Tournament, Discipline, Level } from "../types/tournament";
+import { Match, Poule, Team } from "../types/tournament";
 
 // Generate a unique ID
 export const generateId = (): string => {
@@ -8,7 +7,7 @@ export const generateId = (): string => {
 
 // Generate all matches for a poule
 export const generateMatches = (poule: Poule): Match[] => {
-  const teams = poule.teams || [];
+  const teams = poule.teams;
   const matches: Match[] = [];
   let orderCounter = 1;
 
@@ -19,7 +18,6 @@ export const generateMatches = (poule: Poule): Match[] => {
         id: generateId(),
         teamA: teams[i],
         teamB: teams[j],
-        sets: [],
         completed: false,
         order: orderCounter++
       });
@@ -35,23 +33,10 @@ export interface TeamStanding {
   played: number;
   won: number;
   lost: number;
-  sets: {
-    won: number;
-    lost: number;
-  };
-  points: {
-    scored: number;
-    conceded: number;
-  };
-  matchPoints: number;
+  points: number;
 }
 
 export const calculateStandings = (poule: Poule): TeamStanding[] => {
-  // Safely handle undefined teams or matches
-  if (!poule || !poule.teams || !poule.matches) {
-    return [];
-  }
-  
   const standings: Record<string, TeamStanding> = {};
 
   // Initialize standings for all teams
@@ -61,21 +46,13 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
       played: 0,
       won: 0,
       lost: 0,
-      sets: {
-        won: 0,
-        lost: 0
-      },
-      points: {
-        scored: 0,
-        conceded: 0
-      },
-      matchPoints: 0
+      points: 0
     };
   });
 
   // Calculate based on completed matches
   poule.matches.forEach(match => {
-    if (match.completed && match.sets.length > 0) {
+    if (match.completed && typeof match.scoreA === 'number' && typeof match.scoreB === 'number') {
       const teamAStanding = standings[match.teamA.id];
       const teamBStanding = standings[match.teamB.id];
 
@@ -83,84 +60,31 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
       teamAStanding.played += 1;
       teamBStanding.played += 1;
 
-      // Count sets won by each team
-      let setsWonByA = 0;
-      let setsWonByB = 0;
-      let pointsScoredByA = 0;
-      let pointsScoredByB = 0;
-
-      match.sets.forEach(set => {
-        if (set.scoreA > set.scoreB) {
-          setsWonByA += 1;
-        } else if (set.scoreB > set.scoreA) {
-          setsWonByB += 1;
-        }
-        
-        pointsScoredByA += set.scoreA;
-        pointsScoredByB += set.scoreB;
-      });
-
-      // Update sets stats
-      teamAStanding.sets.won += setsWonByA;
-      teamAStanding.sets.lost += setsWonByB;
-      teamBStanding.sets.won += setsWonByB;
-      teamBStanding.sets.lost += setsWonByA;
-
-      // Update points stats
-      teamAStanding.points.scored += pointsScoredByA;
-      teamAStanding.points.conceded += pointsScoredByB;
-      teamBStanding.points.scored += pointsScoredByB;
-      teamBStanding.points.conceded += pointsScoredByA;
-
-      // Update wins, losses and match points
-      if (setsWonByA > setsWonByB) {
+      // Update wins, losses and points
+      if (match.scoreA > match.scoreB) {
         teamAStanding.won += 1;
         teamBStanding.lost += 1;
-        teamAStanding.matchPoints += 2;
-        teamBStanding.matchPoints += 0;
-      } else if (setsWonByA < setsWonByB) {
+        teamAStanding.points += 2;
+        teamBStanding.points += 0;
+      } else if (match.scoreA < match.scoreB) {
         teamAStanding.lost += 1;
         teamBStanding.won += 1;
-        teamAStanding.matchPoints += 0;
-        teamBStanding.matchPoints += 2;
+        teamAStanding.points += 0;
+        teamBStanding.points += 2;
       } else {
         // Draw (if allowed)
-        teamAStanding.matchPoints += 1;
-        teamBStanding.matchPoints += 1;
+        teamAStanding.points += 1;
+        teamBStanding.points += 1;
       }
     }
   });
 
-  // Convert to array and sort by: 
-  // 1. match points
-  // 2. sets won
-  // 3. points difference
-  return Object.values(standings).sort((a, b) => {
-    // First, sort by match points
-    if (b.matchPoints !== a.matchPoints) {
-      return b.matchPoints - a.matchPoints;
-    }
-    
-    // If match points are equal, sort by sets won
-    if (b.sets.won !== a.sets.won) {
-      return b.sets.won - a.sets.won;
-    }
-    
-    // If sets won are equal, sort by points difference
-    const pointsDiffA = a.points.scored - a.points.conceded;
-    const pointsDiffB = b.points.scored - b.points.conceded;
-    
-    return pointsDiffB - pointsDiffA;
-  });
+  // Convert to array and sort by points (descending)
+  return Object.values(standings).sort((a, b) => b.points - a.points);
 };
 
 // Get winner of a poule
 export const getPouleWinner = (poule: Poule): Team | null => {
-  // Handle undefined case
-  if (!poule || !poule.matches) {
-    return null;
-  }
-  
   // Only return a winner if all matches are completed
   const allMatchesCompleted = poule.matches.every(match => match.completed);
   
@@ -170,8 +94,11 @@ export const getPouleWinner = (poule: Poule): Team | null => {
   
   const standings = calculateStandings(poule);
   
-  // If there are standings, return the first team (highest ranked)
-  if (standings.length > 0) {
+  // If there are standings and the first team has more points than the second
+  if (standings.length > 1 && standings[0].points > standings[1].points) {
+    return standings[0].team;
+  } else if (standings.length === 1) {
+    // If there's only one team
     return standings[0].team;
   }
   
@@ -179,20 +106,13 @@ export const getPouleWinner = (poule: Poule): Team | null => {
 };
 
 // Local storage helpers
-export const saveTournament = (tournament: Tournament): void => {
+export const saveTournament = (tournament: any): void => {
   localStorage.setItem('tournament', JSON.stringify(tournament));
 };
 
-export const loadTournament = (): Tournament | null => {
+export const loadTournament = (): any => {
   const data = localStorage.getItem('tournament');
-  if (!data) return null;
-  
-  try {
-    return JSON.parse(data) as Tournament;
-  } catch (error) {
-    console.error("Error parsing tournament data:", error);
-    return null;
-  }
+  return data ? JSON.parse(data) : null;
 };
 
 export const saveAdminCredentials = (username: string, password: string): void => {
@@ -231,8 +151,7 @@ export const initializeTournament = () => {
     ];
   });
 
-  const tournament: Tournament = { disciplines };
-  saveTournament(tournament);
+  saveTournament({ disciplines });
 
   // Initialize admin credentials if they don't exist
   if (!localStorage.getItem('adminCredentials')) {
