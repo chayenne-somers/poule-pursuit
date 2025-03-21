@@ -5,9 +5,11 @@ import {
   loadTournament, 
   saveTournament, 
   calculateStandings,
-  TeamStanding
+  TeamStanding,
+  isSetComplete,
+  areAllSetsComplete
 } from '@/utils/tournamentUtils';
-import { Poule, Match, Team } from '@/types/tournament';
+import { Poule, Match, Team, SetScore } from '@/types/tournament';
 import NavBar from '@/components/NavBar';
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,6 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
@@ -62,16 +63,36 @@ const PouleDetails = () => {
     });
 
     if (foundPoule) {
-      setPoule(foundPoule);
+      // Ensure matches have the sets array structure
+      const updatedMatches = foundPoule.matches.map(match => {
+        if (!match.sets) {
+          // Convert old format to new format
+          const sets: SetScore[] = [
+            { scoreA: match.scoreA, scoreB: match.scoreB },
+            {}, 
+            {}
+          ];
+          return { ...match, sets };
+        }
+        // Make sure there are 3 sets
+        while (match.sets.length < 3) {
+          match.sets.push({});
+        }
+        return match;
+      });
+
+      const updatedPoule = { ...foundPoule, matches: updatedMatches };
+      
+      setPoule(updatedPoule);
       setDiscipline(disciplineName);
       setLevel(levelName);
       
       // Sort matches by order
-      const sortedMatches = [...foundPoule.matches].sort((a, b) => a.order - b.order);
+      const sortedMatches = [...updatedMatches].sort((a, b) => a.order - b.order);
       setMatches(sortedMatches);
       
       // Calculate standings
-      setStandings(calculateStandings(foundPoule));
+      setStandings(calculateStandings(updatedPoule));
     }
     
     setIsLoading(false);
@@ -81,23 +102,29 @@ const PouleDetails = () => {
     return `${team.players[0].name} & ${team.players[1].name}`;
   };
 
-  const handleScoreChange = (matchIndex: number, team: 'A' | 'B', value: string) => {
+  const handleSetScoreChange = (matchIndex: number, setIndex: number, team: 'A' | 'B', value: string) => {
     if (!poule) return;
     
     const updatedMatches = [...matches];
     const match = updatedMatches[matchIndex];
     
+    // Ensure match has 3 sets
+    if (!match.sets || match.sets.length < 3) {
+      match.sets = [{}, {}, {}];
+    }
+    
     // Convert to number or set to undefined if invalid
     const score = value === '' ? undefined : Number(value);
     
+    // Update the specific set score
     if (team === 'A') {
-      match.scoreA = score;
+      match.sets[setIndex].scoreA = score;
     } else {
-      match.scoreB = score;
+      match.sets[setIndex].scoreB = score;
     }
     
-    // Mark as completed if both scores are present
-    match.completed = typeof match.scoreA === 'number' && typeof match.scoreB === 'number';
+    // Mark as completed if all sets have scores
+    match.completed = areAllSetsComplete(match);
     
     setMatches(updatedMatches);
     
@@ -227,34 +254,57 @@ const PouleDetails = () => {
                     <div 
                       key={match.id} 
                       className={cn(
-                        "match-row",
-                        match.completed && "bg-green-50"
+                        "match-row space-y-4 border-b pb-4 mb-4 last:border-0 last:pb-0 last:mb-0",
+                        match.completed && "bg-green-50 rounded-md p-2"
                       )}
                     >
-                      <div className="text-right">
-                        <p className="font-medium truncate">{getTeamName(match.teamA)}</p>
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-sm text-muted-foreground">Match {index + 1}</p>
+                        {match.completed && (
+                          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
+                            <Check className="mr-1 h-3 w-3" /> Completed
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="flex items-center space-x-4">
-                        <Input
-                          type="number"
-                          min="0"
-                          className="score-input"
-                          value={match.scoreA ?? ''}
-                          onChange={(e) => handleScoreChange(index, 'A', e.target.value)}
-                        />
-                        <span className="text-muted-foreground">-</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          className="score-input"
-                          value={match.scoreB ?? ''}
-                          onChange={(e) => handleScoreChange(index, 'B', e.target.value)}
-                        />
+                      <div className="grid grid-cols-5 mb-2">
+                        <div className="col-span-2 text-right">
+                          <p className="font-medium truncate pr-2">{getTeamName(match.teamA)}</p>
+                        </div>
+                        <div className="col-span-1 text-center text-muted-foreground">vs</div>
+                        <div className="col-span-2">
+                          <p className="font-medium truncate pl-2">{getTeamName(match.teamB)}</p>
+                        </div>
                       </div>
 
-                      <div>
-                        <p className="font-medium truncate">{getTeamName(match.teamB)}</p>
+                      <div className="space-y-2">
+                        {[0, 1, 2].map((setIndex) => (
+                          <div key={`set-${setIndex}`} className="grid grid-cols-5 items-center gap-2">
+                            <div className="col-span-2 text-right text-sm">
+                              <span className="mr-2 text-muted-foreground">Set {setIndex + 1}</span>
+                            </div>
+                            
+                            <div className="col-span-1 flex items-center justify-center">
+                              <Input
+                                type="number"
+                                min="0"
+                                className="score-input w-14 text-center px-2"
+                                value={match.sets[setIndex]?.scoreA ?? ''}
+                                onChange={(e) => handleSetScoreChange(index, setIndex, 'A', e.target.value)}
+                              />
+                              <span className="mx-1 text-muted-foreground">-</span>
+                              <Input
+                                type="number"
+                                min="0"
+                                className="score-input w-14 text-center px-2"
+                                value={match.sets[setIndex]?.scoreB ?? ''}
+                                onChange={(e) => handleSetScoreChange(index, setIndex, 'B', e.target.value)}
+                              />
+                            </div>
+                            
+                            <div className="col-span-2"></div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))
@@ -289,11 +339,12 @@ const PouleDetails = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-4 text-xs text-muted-foreground px-2">
+                    <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 text-xs text-muted-foreground px-2">
                       <div>#</div>
                       <div>Team</div>
                       <div className="text-center">P</div>
-                      <div className="text-center">W</div>
+                      <div className="text-center">MW</div>
+                      <div className="text-center">SW</div>
                       <div className="text-center">Pts</div>
                     </div>
                     
@@ -303,17 +354,22 @@ const PouleDetails = () => {
                       <div 
                         key={standing.team.id} 
                         className={cn(
-                          "grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-4 items-center py-2 px-2 rounded-md",
+                          "grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center py-2 px-2 rounded-md",
                           index === 0 && "bg-accent/40"
                         )}
                       >
                         <div className="font-medium">{index + 1}</div>
                         <div className="font-medium truncate">{getTeamName(standing.team)}</div>
                         <div className="text-center">{standing.played}</div>
-                        <div className="text-center">{standing.won}</div>
-                        <div className="text-center font-bold">{standing.points}</div>
+                        <div className="text-center">{standing.matchesWon}</div>
+                        <div className="text-center">{standing.setsWon}</div>
+                        <div className="text-center font-bold">{standing.pointsScored}</div>
                       </div>
                     ))}
+                    
+                    <div className="text-xs text-muted-foreground mt-4 pt-2 border-t">
+                      <p>P = Played, MW = Matches Won, SW = Sets Won, Pts = Points Scored</p>
+                    </div>
                   </div>
                 )}
               </CardContent>

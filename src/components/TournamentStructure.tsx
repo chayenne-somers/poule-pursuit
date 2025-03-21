@@ -62,6 +62,12 @@ const TournamentStructure = ({
 
   const selectedDisciplineData = disciplines.find(d => d.id === selectedDiscipline);
 
+  const getTeamNames = (poule: Poule) => {
+    const winner = getPouleWinner(poule);
+    if (!winner) return null;
+    return `${winner.players[0].name} & ${winner.players[1].name}`;
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto">
       <div className="mb-8">
@@ -181,6 +187,8 @@ const TournamentStructure = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {level.poules.map((poule) => {
                             const winner = getPouleWinner(poule);
+                            const winnerNames = getTeamNames(poule);
+                            
                             return (
                               <Link
                                 key={poule.id}
@@ -245,7 +253,7 @@ const TournamentStructure = ({
                                     <CardFooter className="pt-0 pb-4 border-t border-border/30 mt-2">
                                       <div className="flex items-center text-amber-600 gap-1.5">
                                         <Award className="h-4 w-4" />
-                                        <span className="font-medium">Winner: {winner.players[0].name} & {winner.players[1].name}</span>
+                                        <span className="font-medium">Winner: {winnerNames}</span>
                                       </div>
                                     </CardFooter>
                                   )}

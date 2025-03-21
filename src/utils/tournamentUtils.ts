@@ -1,4 +1,5 @@
-import { Match, Poule, Team } from "../types/tournament";
+
+import { Match, Poule, Team, SetScore } from "../types/tournament";
 
 // Generate a unique ID
 export const generateId = (): string => {
@@ -18,6 +19,7 @@ export const generateMatches = (poule: Poule): Match[] => {
         id: generateId(),
         teamA: teams[i],
         teamB: teams[j],
+        sets: [{}, {}, {}], // Initialize with three empty sets
         completed: false,
         order: orderCounter++
       });
@@ -31,9 +33,9 @@ export const generateMatches = (poule: Poule): Match[] => {
 export interface TeamStanding {
   team: Team;
   played: number;
-  won: number;
-  lost: number;
-  points: number;
+  matchesWon: number;
+  setsWon: number;
+  pointsScored: number;
 }
 
 export const calculateStandings = (poule: Poule): TeamStanding[] => {
@@ -44,15 +46,15 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
     standings[team.id] = {
       team,
       played: 0,
-      won: 0,
-      lost: 0,
-      points: 0
+      matchesWon: 0,
+      setsWon: 0,
+      pointsScored: 0
     };
   });
 
   // Calculate based on completed matches
   poule.matches.forEach(match => {
-    if (match.completed && typeof match.scoreA === 'number' && typeof match.scoreB === 'number') {
+    if (match.completed) {
       const teamAStanding = standings[match.teamA.id];
       const teamBStanding = standings[match.teamB.id];
 
@@ -60,27 +62,55 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
       teamAStanding.played += 1;
       teamBStanding.played += 1;
 
-      // Update wins, losses and points
-      if (match.scoreA > match.scoreB) {
-        teamAStanding.won += 1;
-        teamBStanding.lost += 1;
-        teamAStanding.points += 2;
-        teamBStanding.points += 0;
-      } else if (match.scoreA < match.scoreB) {
-        teamAStanding.lost += 1;
-        teamBStanding.won += 1;
-        teamAStanding.points += 0;
-        teamBStanding.points += 2;
-      } else {
-        // Draw (if allowed)
-        teamAStanding.points += 1;
-        teamBStanding.points += 1;
+      // Count sets won and points scored
+      let setsWonA = 0;
+      let setsWonB = 0;
+      let pointsA = 0;
+      let pointsB = 0;
+
+      match.sets.forEach(set => {
+        if (typeof set.scoreA === 'number' && typeof set.scoreB === 'number') {
+          // Add points
+          pointsA += set.scoreA;
+          pointsB += set.scoreB;
+
+          // Determine set winner
+          if (set.scoreA > set.scoreB) {
+            setsWonA++;
+          } else if (set.scoreB > set.scoreA) {
+            setsWonB++;
+          }
+        }
+      });
+
+      // Update sets won and points scored in standings
+      teamAStanding.setsWon += setsWonA;
+      teamBStanding.setsWon += setsWonB;
+      teamAStanding.pointsScored += pointsA;
+      teamBStanding.pointsScored += pointsB;
+
+      // Determine match winner
+      if (setsWonA > setsWonB) {
+        teamAStanding.matchesWon += 1;
+      } else if (setsWonB > setsWonA) {
+        teamBStanding.matchesWon += 1;
       }
     }
   });
 
-  // Convert to array and sort by points (descending)
-  return Object.values(standings).sort((a, b) => b.points - a.points);
+  // Convert to array and sort by:
+  // 1. Most matches won
+  // 2. If tied, most sets won
+  // 3. If still tied, most points scored
+  return Object.values(standings).sort((a, b) => {
+    if (a.matchesWon !== b.matchesWon) {
+      return b.matchesWon - a.matchesWon;
+    }
+    if (a.setsWon !== b.setsWon) {
+      return b.setsWon - a.setsWon;
+    }
+    return b.pointsScored - a.pointsScored;
+  });
 };
 
 // Get winner of a poule
@@ -94,11 +124,8 @@ export const getPouleWinner = (poule: Poule): Team | null => {
   
   const standings = calculateStandings(poule);
   
-  // If there are standings and the first team has more points than the second
-  if (standings.length > 1 && standings[0].points > standings[1].points) {
-    return standings[0].team;
-  } else if (standings.length === 1) {
-    // If there's only one team
+  // Return the top team
+  if (standings.length > 0) {
     return standings[0].team;
   }
   
@@ -127,6 +154,16 @@ export const checkAdminCredentials = (username: string, password: string): boole
   
   const { username: storedUsername, password: storedPassword } = JSON.parse(credentials);
   return username === storedUsername && password === storedPassword;
+};
+
+// Check if a set is valid (has both scores)
+export const isSetComplete = (set: SetScore): boolean => {
+  return typeof set.scoreA === 'number' && typeof set.scoreB === 'number';
+};
+
+// Check if a match is complete (all sets have scores)
+export const areAllSetsComplete = (match: Match): boolean => {
+  return match.sets.every(set => isSetComplete(set));
 };
 
 // Initialize sample tournament data
