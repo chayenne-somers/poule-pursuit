@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Discipline, Level, Poule, NavigationState } from '@/types/tournament';
@@ -12,6 +13,7 @@ import { getPouleWinner } from '@/utils/tournamentUtils';
 
 interface TournamentStructureProps {
   disciplines: Discipline[];
+  tournament?: { disciplines: Discipline[] }; // Add this line to accept the tournament prop
   isAdmin?: boolean;
   navigationState?: NavigationState;
   onNavigationChange?: (newState: NavigationState) => void;
@@ -22,6 +24,7 @@ interface TournamentStructureProps {
 
 const TournamentStructure = ({ 
   disciplines, 
+  tournament, // Accept the tournament prop
   isAdmin = false,
   navigationState,
   onNavigationChange,
@@ -29,8 +32,11 @@ const TournamentStructure = ({
   onDeleteItem,
   onViewTeams
 }: TournamentStructureProps) => {
+  // If tournament prop is passed, use its disciplines, otherwise use the disciplines prop
+  const allDisciplines = tournament?.disciplines || disciplines;
+  
   const [selectedDiscipline, setSelectedDiscipline] = useState<string | undefined>(
-    navigationState?.selectedDiscipline || (disciplines.length > 0 ? disciplines[0].id : undefined)
+    navigationState?.selectedDiscipline || (allDisciplines.length > 0 ? allDisciplines[0].id : undefined)
   );
   
   const [animateCards, setAnimateCards] = useState(false);
@@ -61,7 +67,7 @@ const TournamentStructure = ({
     }
   };
 
-  const selectedDisciplineData = disciplines.find(d => d.id === selectedDiscipline);
+  const selectedDisciplineData = allDisciplines.find(d => d.id === selectedDiscipline);
 
   const getTeamNames = (poule: Poule) => {
     const winner = getPouleWinner(poule);
@@ -76,7 +82,7 @@ const TournamentStructure = ({
           <div className="border-b">
             <ScrollArea className="w-full overflow-auto pb-2">
               <TabsList className="inline-flex h-14 items-center justify-start rounded-none bg-transparent p-0">
-                {disciplines.map((discipline) => (
+                {allDisciplines.map((discipline) => (
                   <TabsTrigger
                     key={discipline.id}
                     value={discipline.id}
@@ -118,7 +124,7 @@ const TournamentStructure = ({
             </ScrollArea>
           </div>
           
-          {disciplines.map((discipline) => (
+          {allDisciplines.map((discipline) => (
             <TabsContent 
               key={discipline.id} 
               value={discipline.id}
