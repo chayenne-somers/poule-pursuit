@@ -131,6 +131,52 @@ const PouleDetails = () => {
     setMatches(updatedMatches);
   };
 
+  // Save scores for a specific match
+  const handleSaveMatch = (matchIndex: number) => {
+    if (!tournament || !poule) return;
+    
+    // Create updated poule with the specific match updated
+    const updatedPoule: Poule = { 
+      ...poule, 
+      matches: poule.matches.map((m, i) => i === matchIndex ? matches[matchIndex] : m) 
+    };
+    
+    // Find and update the poule in the tournament
+    const updatedTournament = { ...tournament };
+    
+    let updated = false;
+    
+    for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+      const discipline = updatedTournament.disciplines[i];
+      for (let j = 0; j < discipline.levels.length; j++) {
+        const level = discipline.levels[j];
+        for (let k = 0; k < level.poules.length; k++) {
+          const p = level.poules[k];
+          if (p.id === poule.id) {
+            updatedTournament.disciplines[i].levels[j].poules[k] = updatedPoule;
+            updated = true;
+            break;
+          }
+        }
+        if (updated) break;
+      }
+      if (updated) break;
+    }
+    
+    if (updated) {
+      // Save tournament
+      saveTournament(updatedTournament);
+      setTournament(updatedTournament);
+      setPoule(updatedPoule);
+      
+      toast({
+        title: "Match saved",
+        description: `Match ${matchIndex + 1} scores have been updated`,
+      });
+    }
+  };
+
+  // Save all matches
   const handleSaveScores = () => {
     if (!tournament || !poule) return;
     
@@ -166,8 +212,8 @@ const PouleDetails = () => {
       setPoule(updatedPoule);
       
       toast({
-        title: "Scores saved",
-        description: "Match scores have been updated successfully",
+        title: "All scores saved",
+        description: "All match scores have been updated successfully",
       });
     }
   };
@@ -229,7 +275,7 @@ const PouleDetails = () => {
                 {isAdmin && (
                   <Button onClick={handleSaveScores}>
                     <Save className="h-4 w-4 mr-2" />
-                    Save Scores
+                    Save All Scores
                   </Button>
                 )}
               </div>
@@ -276,12 +322,25 @@ const PouleDetails = () => {
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-center">
                         <CardTitle className="text-lg">Match {matchIndex + 1}</CardTitle>
-                        {match.completed && (
-                          <Badge className={teamAWon ? 'bg-green-500' : 'bg-blue-500'}>
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Completed
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {match.completed && (
+                            <Badge className={teamAWon ? 'bg-green-500' : 'bg-blue-500'}>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Completed
+                            </Badge>
+                          )}
+                          {isAdmin && (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleSaveMatch(matchIndex)}
+                              className="h-8 px-3"
+                            >
+                              <Save className="h-3.5 w-3.5 mr-1" />
+                              Save
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <CardDescription>
                         Order: {match.order}
@@ -302,7 +361,7 @@ const PouleDetails = () => {
                         </div>
                         <div className="flex justify-center gap-2">
                           {match.sets.map((set, setIndex) => (
-                            <div key={setIndex} className="w-12">
+                            <div key={setIndex} className="w-14">
                               {isAdmin ? (
                                 <Input
                                   type="number"
@@ -334,7 +393,7 @@ const PouleDetails = () => {
                         </div>
                         <div className="flex justify-center gap-2">
                           {match.sets.map((set, setIndex) => (
-                            <div key={setIndex} className="w-12">
+                            <div key={setIndex} className="w-14">
                               {isAdmin ? (
                                 <Input
                                   type="number"

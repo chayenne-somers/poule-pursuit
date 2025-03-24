@@ -1,3 +1,4 @@
+
 import { Match, Poule, Team, SetScore } from "../types/tournament";
 
 // Generate a unique ID
@@ -5,27 +6,69 @@ export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11);
 };
 
-// Generate all matches for a poule
+// Generate all matches for a poule with the specific ordering based on team count
 export const generateMatches = (poule: Poule): Match[] => {
   const teams = poule.teams;
   const matches: Match[] = [];
-  let orderCounter = 1;
-
-  // Generate matches: each team plays against all other teams
-  for (let i = 0; i < teams.length - 1; i++) {
-    for (let j = i + 1; j < teams.length; j++) {
-      matches.push({
-        id: generateId(),
-        teamA: teams[i],
-        teamB: teams[j],
-        sets: [{}, {}, {}], // Initialize with three empty sets
-        completed: false,
-        order: orderCounter++
-      });
+  
+  // Return empty array if there are fewer than 2 teams
+  if (teams.length < 2) {
+    return [];
+  }
+  
+  // Use specific match ordering based on team count
+  if (teams.length === 3) {
+    // For 3 teams: Team 1 vs Team 2, Team 1 vs Team 3, Team 2 vs Team 3
+    matches.push(createMatch(teams[0], teams[1], 1)); // Team 1 vs Team 2
+    matches.push(createMatch(teams[0], teams[2], 2)); // Team 1 vs Team 3
+    matches.push(createMatch(teams[1], teams[2], 3)); // Team 2 vs Team 3
+  } 
+  else if (teams.length === 4) {
+    // For 4 teams: specific ordering as requested
+    matches.push(createMatch(teams[0], teams[1], 1)); // Team 1 vs Team 2
+    matches.push(createMatch(teams[2], teams[3], 2)); // Team 3 vs Team 4
+    matches.push(createMatch(teams[0], teams[2], 3)); // Team 1 vs Team 3
+    matches.push(createMatch(teams[1], teams[3], 4)); // Team 2 vs Team 4
+    matches.push(createMatch(teams[0], teams[3], 5)); // Team 1 vs Team 4
+    matches.push(createMatch(teams[1], teams[2], 6)); // Team 2 vs Team 3
+  } 
+  else if (teams.length === 5) {
+    // For 5 teams: specific ordering as requested
+    matches.push(createMatch(teams[0], teams[1], 1));  // Team 1 vs Team 2
+    matches.push(createMatch(teams[2], teams[3], 2));  // Team 3 vs Team 4
+    matches.push(createMatch(teams[4], teams[0], 3));  // Team 5 vs Team 1
+    matches.push(createMatch(teams[1], teams[2], 4));  // Team 2 vs Team 3
+    matches.push(createMatch(teams[3], teams[4], 5));  // Team 4 vs Team 5
+    matches.push(createMatch(teams[0], teams[2], 6));  // Team 1 vs Team 3
+    matches.push(createMatch(teams[1], teams[4], 7));  // Team 2 vs Team 5
+    matches.push(createMatch(teams[2], teams[3], 8));  // Team 3 vs Team 4
+    matches.push(createMatch(teams[0], teams[3], 9));  // Team 1 vs Team 4
+    matches.push(createMatch(teams[2], teams[4], 10)); // Team 3 vs Team 5
+    matches.push(createMatch(teams[1], teams[3], 11)); // Team 2 vs Team 4
+  } 
+  else {
+    // For any other number of teams, use round-robin pattern
+    let orderCounter = 1;
+    for (let i = 0; i < teams.length - 1; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        matches.push(createMatch(teams[i], teams[j], orderCounter++));
+      }
     }
   }
-
+  
   return matches;
+};
+
+// Helper function to create a match
+const createMatch = (teamA: Team, teamB: Team, order: number): Match => {
+  return {
+    id: generateId(),
+    teamA,
+    teamB,
+    sets: [{}, {}, {}], // Initialize with three empty sets
+    completed: false,
+    order
+  };
 };
 
 // Check if a set is complete (has both scores)
@@ -171,13 +214,6 @@ export const isMatchComplete = (match: Match): boolean => {
   });
   
   return setsWonA >= 2 || setsWonB >= 2;
-};
-
-// Optimize match order to minimize waiting time
-export const optimizeMatchOrder = (matches: Match[]): Match[] => {
-  // Simple implementation: keep original order for now
-  // This could be enhanced with a more sophisticated algorithm
-  return [...matches].sort((a, b) => a.order - b.order);
 };
 
 // Local storage helpers
