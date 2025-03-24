@@ -1,4 +1,3 @@
-
 import { Match, Poule, Team, SetScore } from "../types/tournament";
 
 // Generate a unique ID
@@ -137,9 +136,59 @@ export const saveTournament = (tournament: any): void => {
   localStorage.setItem('tournament', JSON.stringify(tournament));
 };
 
+// Ensure safe tournament loading with proper defaults
 export const loadTournament = (): any => {
-  const data = localStorage.getItem('tournament');
-  return data ? JSON.parse(data) : null;
+  try {
+    const data = localStorage.getItem('tournament');
+    if (!data) return null;
+    
+    const parsedData = JSON.parse(data);
+    
+    // Ensure disciplines exists
+    if (!parsedData.disciplines) {
+      parsedData.disciplines = [];
+    }
+    
+    // Ensure each discipline has a levels array
+    parsedData.disciplines.forEach((discipline: any) => {
+      if (!discipline.levels) {
+        discipline.levels = [];
+      }
+      
+      // Ensure each level has a poules array
+      discipline.levels.forEach((level: any) => {
+        if (!level.poules) {
+          level.poules = [];
+        }
+        
+        // Ensure each poule has teams and matches arrays
+        level.poules.forEach((poule: any) => {
+          if (!poule.teams) {
+            poule.teams = [];
+          }
+          if (!poule.matches) {
+            poule.matches = [];
+          }
+          
+          // Ensure each match has a sets array with 3 sets
+          poule.matches.forEach((match: any) => {
+            if (!match.sets || !Array.isArray(match.sets)) {
+              match.sets = [{}, {}, {}];
+            }
+            // Ensure 3 sets
+            while (match.sets.length < 3) {
+              match.sets.push({});
+            }
+          });
+        });
+      });
+    });
+    
+    return parsedData;
+  } catch (error) {
+    console.error("Error loading tournament data:", error);
+    return { disciplines: [] };
+  }
 };
 
 export const saveAdminCredentials = (username: string, password: string): void => {

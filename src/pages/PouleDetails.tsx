@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -65,13 +64,9 @@ const PouleDetails = () => {
     if (foundPoule) {
       // Ensure matches have the sets array structure
       const updatedMatches = foundPoule.matches.map(match => {
-        if (!match.sets) {
-          // Convert old format to new format
-          const sets: SetScore[] = [
-            { scoreA: match.scoreA, scoreB: match.scoreB },
-            {}, 
-            {}
-          ];
+        if (!match.sets || match.sets.length === 0) {
+          // Convert old format to new format if needed
+          const sets: SetScore[] = [{}, {}, {}];
           return { ...match, sets };
         }
         // Make sure there are 3 sets

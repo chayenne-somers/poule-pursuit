@@ -15,7 +15,16 @@ const Index = () => {
     
     // Load tournament data
     const data = loadTournament();
-    setTournament(data);
+    
+    // Ensure we have a valid tournament structure
+    if (data && data.disciplines) {
+      setTournament(data);
+    } else {
+      // If we don't have valid data, reinitialize
+      initializeTournament();
+      setTournament(loadTournament());
+    }
+    
     setIsLoading(false);
   }, []);
 
@@ -39,7 +48,7 @@ const Index = () => {
               <div className="h-3 w-3 bg-primary rounded-full"></div>
             </div>
           </div>
-        ) : tournament ? (
+        ) : tournament && tournament.disciplines ? (
           <TournamentStructure disciplines={tournament.disciplines} />
         ) : (
           <div className="text-center py-12">
