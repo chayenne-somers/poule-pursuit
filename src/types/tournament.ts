@@ -67,3 +67,11 @@ export interface NavigationState {
   selectedLevel?: string;
   selectedPoule?: string;
 }
+
+// Admin component props that include team viewing
+export interface AdminComponentProps {
+  isAdmin?: boolean;
+  onEditItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
+  onDeleteItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
+  onViewTeams?: (pouleId: string) => void;
+}

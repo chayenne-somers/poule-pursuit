@@ -28,12 +28,28 @@ export const generateMatches = (poule: Poule): Match[] => {
   return matches;
 };
 
+// Check if a set is complete (has both scores)
+export const isSetComplete = (set: SetScore): boolean => {
+  return typeof set.scoreA === 'number' && typeof set.scoreB === 'number';
+};
+
+// Check if a team won a set
+export const didTeamWinSet = (set: SetScore, isTeamA: boolean): boolean => {
+  if (!isSetComplete(set)) return false;
+  
+  return isTeamA 
+    ? set.scoreA! > set.scoreB!
+    : set.scoreB! > set.scoreA!;
+};
+
 // Calculate team standings in a poule
 export interface TeamStanding {
   team: Team;
   played: number;
   matchesWon: number;
   setsWon: number;
+  setsLost: number;
+  setSaldo: number;
   pointsScored: number;
 }
 
@@ -47,6 +63,8 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
       played: 0,
       matchesWon: 0,
       setsWon: 0,
+      setsLost: 0,
+      setSaldo: 0,
       pointsScored: 0
     };
   });
@@ -85,13 +103,17 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
       // Update sets won and points scored in standings
       teamAStanding.setsWon += setsWonA;
       teamBStanding.setsWon += setsWonB;
+      teamAStanding.setsLost += setsWonB;
+      teamBStanding.setsLost += setsWonA;
+      teamAStanding.setSaldo = teamAStanding.setsWon - teamAStanding.setsLost;
+      teamBStanding.setSaldo = teamBStanding.setsWon - teamBStanding.setsLost;
       teamAStanding.pointsScored += pointsA;
       teamBStanding.pointsScored += pointsB;
 
-      // Determine match winner
-      if (setsWonA > setsWonB) {
+      // Determine match winner (team wins if they won 2 or more sets)
+      if (setsWonA >= 2) {
         teamAStanding.matchesWon += 1;
-      } else if (setsWonB > setsWonA) {
+      } else if (setsWonB >= 2) {
         teamBStanding.matchesWon += 1;
       }
     }
@@ -99,14 +121,14 @@ export const calculateStandings = (poule: Poule): TeamStanding[] => {
 
   // Convert to array and sort by:
   // 1. Most matches won
-  // 2. If tied, most sets won
+  // 2. If tied, best set saldo (sets won - sets lost)
   // 3. If still tied, most points scored
   return Object.values(standings).sort((a, b) => {
     if (a.matchesWon !== b.matchesWon) {
       return b.matchesWon - a.matchesWon;
     }
-    if (a.setsWon !== b.setsWon) {
-      return b.setsWon - a.setsWon;
+    if (a.setSaldo !== b.setSaldo) {
+      return b.setSaldo - a.setSaldo;
     }
     return b.pointsScored - a.pointsScored;
   });
@@ -129,6 +151,33 @@ export const getPouleWinner = (poule: Poule): Team | null => {
   }
   
   return null;
+};
+
+// Check if a match is complete (a team has won 2 sets)
+export const isMatchComplete = (match: Match): boolean => {
+  if (!match.sets || match.sets.length < 3) return false;
+  
+  let setsWonA = 0;
+  let setsWonB = 0;
+  
+  match.sets.forEach(set => {
+    if (isSetComplete(set)) {
+      if (set.scoreA! > set.scoreB!) {
+        setsWonA++;
+      } else if (set.scoreB! > set.scoreA!) {
+        setsWonB++;
+      }
+    }
+  });
+  
+  return setsWonA >= 2 || setsWonB >= 2;
+};
+
+// Optimize match order to minimize waiting time
+export const optimizeMatchOrder = (matches: Match[]): Match[] => {
+  // Simple implementation: keep original order for now
+  // This could be enhanced with a more sophisticated algorithm
+  return [...matches].sort((a, b) => a.order - b.order);
 };
 
 // Local storage helpers
@@ -203,16 +252,6 @@ export const checkAdminCredentials = (username: string, password: string): boole
   
   const { username: storedUsername, password: storedPassword } = JSON.parse(credentials);
   return username === storedUsername && password === storedPassword;
-};
-
-// Check if a set is valid (has both scores)
-export const isSetComplete = (set: SetScore): boolean => {
-  return typeof set.scoreA === 'number' && typeof set.scoreB === 'number';
-};
-
-// Check if a match is complete (all sets have scores)
-export const areAllSetsComplete = (match: Match): boolean => {
-  return match.sets.every(set => isSetComplete(set));
 };
 
 // Initialize sample tournament data
