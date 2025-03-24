@@ -5,69 +5,27 @@ export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 11);
 };
 
-// Generate all matches for a poule with specific ordering patterns
+// Generate all matches for a poule
 export const generateMatches = (poule: Poule): Match[] => {
   const teams = poule.teams;
   const matches: Match[] = [];
-  
-  if (teams.length < 2) {
-    return [];
-  }
-  
-  // Implement specific ordering patterns based on the number of teams
-  if (teams.length === 3) {
-    // For 3 teams: 1v2, 1v3, 2v3
-    matches.push(createMatch(teams[0], teams[1], 1));
-    matches.push(createMatch(teams[0], teams[2], 2));
-    matches.push(createMatch(teams[1], teams[2], 3));
-  } 
-  else if (teams.length === 4) {
-    // For 4 teams: 1v2, 3v4, 1v3, 2v4, 1v4, 2v3
-    matches.push(createMatch(teams[0], teams[1], 1));
-    matches.push(createMatch(teams[2], teams[3], 2));
-    matches.push(createMatch(teams[0], teams[2], 3));
-    matches.push(createMatch(teams[1], teams[3], 4));
-    matches.push(createMatch(teams[0], teams[3], 5));
-    matches.push(createMatch(teams[1], teams[2], 6));
-  }
-  else if (teams.length === 5) {
-    // For 5 teams: 1v2, 3v4, 5v1, 2v3, 4v5, 1v3, 2v5, 3v4, 1v4, 3v5, 2v4
-    matches.push(createMatch(teams[0], teams[1], 1));
-    matches.push(createMatch(teams[2], teams[3], 2));
-    matches.push(createMatch(teams[4], teams[0], 3));
-    matches.push(createMatch(teams[1], teams[2], 4));
-    matches.push(createMatch(teams[3], teams[4], 5));
-    matches.push(createMatch(teams[0], teams[2], 6));
-    matches.push(createMatch(teams[1], teams[4], 7));
-    matches.push(createMatch(teams[2], teams[3], 8));
-    matches.push(createMatch(teams[0], teams[3], 9));
-    matches.push(createMatch(teams[2], teams[4], 10));
-    matches.push(createMatch(teams[1], teams[3], 11));
-  }
-  else {
-    // For all other team counts, use a generic round-robin approach
-    let orderCounter = 1;
-    // Generate matches: each team plays against all other teams
-    for (let i = 0; i < teams.length - 1; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        matches.push(createMatch(teams[i], teams[j], orderCounter++));
-      }
+  let orderCounter = 1;
+
+  // Generate matches: each team plays against all other teams
+  for (let i = 0; i < teams.length - 1; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      matches.push({
+        id: generateId(),
+        teamA: teams[i],
+        teamB: teams[j],
+        sets: [{}, {}, {}], // Initialize with three empty sets
+        completed: false,
+        order: orderCounter++
+      });
     }
   }
 
   return matches;
-};
-
-// Helper function to create a match
-const createMatch = (teamA: Team, teamB: Team, order: number): Match => {
-  return {
-    id: generateId(),
-    teamA,
-    teamB,
-    sets: [{}, {}, {}], // Initialize with three empty sets
-    completed: false,
-    order
-  };
 };
 
 // Check if a set is complete (has both scores)
@@ -213,6 +171,13 @@ export const isMatchComplete = (match: Match): boolean => {
   });
   
   return setsWonA >= 2 || setsWonB >= 2;
+};
+
+// Optimize match order to minimize waiting time
+export const optimizeMatchOrder = (matches: Match[]): Match[] => {
+  // Simple implementation: keep original order for now
+  // This could be enhanced with a more sophisticated algorithm
+  return [...matches].sort((a, b) => a.order - b.order);
 };
 
 // Local storage helpers

@@ -1,379 +1,708 @@
-import { useState, useEffect } from 'react';
+
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Discipline, Level, Poule, Team, Tournament } from '@/types/tournament';
-import { loadTournament, saveTournament, generateId } from '@/utils/tournamentUtils';
+import { 
+  Tournament, 
+  Discipline, 
+  Level, 
+  Poule, 
+  Team, 
+  Player, 
+  NavigationState 
+} from '@/types/tournament';
+import { 
+  loadTournament, 
+  saveTournament, 
+  generateId, 
+  generateMatches, 
+  initializeTournament,
+  optimizeMatchOrder,
+  calculateStandings
+} from '@/utils/tournamentUtils';
+import AdminAuth from '@/components/AdminAuth';
 import TournamentStructure from '@/components/TournamentStructure';
-import AdminForm from '@/components/AdminForm';
-import TeamsViewDialog from '@/components/TeamsViewDialog';
+import TeamStandings from '@/components/TeamStandings';
+import NavBar from '@/components/NavBar';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Trash2, Plus, LogOut } from 'lucide-react';
+import { PlusCircle, Save, Users, X, Trash2, Edit } from 'lucide-react';
 
 const Admin = () => {
-  const [tournament, setTournament] = useState<Tournament | null>(null);
-  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
-  const [levels, setLevels] = useState<Level[]>([]);
-  const [poules, setPoules] = useState<Poule[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string | undefined>(undefined);
-  const [selectedLevel, setSelectedLevel] = useState<string | undefined>(undefined);
-  const [selectedPoule, setSelectedPoule] = useState<string | undefined>(undefined);
-  const [currentPoule, setCurrentPoule] = useState<Poule | null>(null);
-  const [teamsViewDialogOpen, setTeamsViewDialogOpen] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formType, setFormType] = useState<'discipline' | 'level' | 'poule' | 'team'>('discipline');
-  const [editItemId, setEditItemId] = useState<string | null>(null);
-  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
-  const [deleteItemType, setDeleteItemType] = useState<'discipline' | 'level' | 'poule' | 'team' | null>(null);
-  const [deleteItemParentId, setDeleteItemParentId] = useState<string | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [navigationState, setNavigationState] = useState({
-    selectedDiscipline: undefined,
-    selectedLevel: undefined,
-    selectedPoule: undefined
-  });
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const navigate = useNavigate();
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [navigationState, setNavigationState] = useState<NavigationState>({});
+  
+  // Dialog states
+  const [addDisciplineDialogOpen, setAddDisciplineDialogOpen] = useState(false);
+  const [addLevelDialogOpen, setAddLevelDialogOpen] = useState(false);
+  const [addPouleDialogOpen, setAddPouleDialogOpen] = useState(false);
+  const [addTeamDialogOpen, setAddTeamDialogOpen] = useState(false);
+  
+  // Edit dialog states
+  const [editDisciplineDialogOpen, setEditDisciplineDialogOpen] = useState(false);
+  const [editLevelDialogOpen, setEditLevelDialogOpen] = useState(false);
+  const [editPouleDialogOpen, setEditPouleDialogOpen] = useState(false);
+  const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
+  
+  // Delete confirmation dialog state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  
+  // Edit/delete state
+  const [currentItemType, setCurrentItemType] = useState<'discipline' | 'level' | 'poule' | 'team' | null>(null);
+  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
+  const [currentParentId, setCurrentParentId] = useState<string | null>(null);
+  
+  // Form states
+  const [newDisciplineName, setNewDisciplineName] = useState('');
+  const [newLevelName, setNewLevelName] = useState('');
+  const [disciplineForLevel, setDisciplineForLevel] = useState('');
+  const [newPouleName, setNewPouleName] = useState('');
+  const [disciplineForPoule, setDisciplineForPoule] = useState('');
+  const [levelForPoule, setLevelForPoule] = useState('');
+  const [player1Name, setPlayer1Name] = useState('');
+  const [player2Name, setPlayer2Name] = useState('');
+  const [pouleForTeam, setPouleForTeam] = useState('');
+  
+  // Edit form states
+  const [editDisciplineName, setEditDisciplineName] = useState('');
+  const [editLevelName, setEditLevelName] = useState('');
+  const [editPouleName, setEditPouleName] = useState('');
+  const [editPlayer1Name, setEditPlayer1Name] = useState('');
+  const [editPlayer2Name, setEditPlayer2Name] = useState('');
+  
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // New state for teams view dialog
+  const [teamsViewDialogOpen, setTeamsViewDialogOpen] = useState(false);
+  const [currentPoule, setCurrentPoule] = useState<Poule | null>(null);
 
   useEffect(() => {
-    const storedAuth = sessionStorage.getItem('isAdminAuthenticated') === 'true';
-      setIsAuthenticated(storedAuth);
+    // Check if admin is authenticated
+    const adminAuth = sessionStorage.getItem('isAdminAuthenticated');
+    setIsAuthenticated(adminAuth === 'true');
     
+    // Initialize tournament data if it doesn't exist
+    initializeTournament();
+    
+    // Load tournament data
     const data = loadTournament();
     setTournament(data);
-    setDisciplines(data?.disciplines || []);
+    setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (tournament) {
-      setDisciplines(tournament.disciplines);
-      
-      // Update levels and poules based on selected discipline and level
-      if (selectedDiscipline) {
-        const selectedDisciplineData = tournament.disciplines.find(d => d.id === selectedDiscipline);
-        setLevels(selectedDisciplineData?.levels || []);
-      } else {
-        setLevels([]);
-      }
-      
-      if (selectedLevel) {
-        const selectedLevelData = levels.find(l => l.id === selectedLevel);
-        setPoules(selectedLevelData?.poules || []);
-      } else {
-        setPoules([]);
-      }
-    }
-  }, [tournament, selectedDiscipline, selectedLevel, levels]);
-
   const handleAuthenticated = () => {
-    sessionStorage.setItem('isAdminAuthenticated', 'true');
     setIsAuthenticated(true);
+    // Reload tournament data
+    const data = loadTournament();
+    setTournament(data);
   };
 
-  const handleSaveTournament = (updatedTournament: Tournament) => {
-    saveTournament(updatedTournament);
-    setTournament(updatedTournament);
-    setDisciplines(updatedTournament.disciplines);
-  };
-
-  const handleAddDiscipline = (newDiscipline: Omit<Discipline, 'id'>) => {
-    if (!tournament) return;
-    
-    const discipline: Discipline = {
-      id: generateId(),
-      ...newDiscipline,
-      levels: []
-    };
-    
-    const updatedTournament: Tournament = {
-      ...tournament,
-      disciplines: [...tournament.disciplines, discipline]
-    };
-    
-    handleSaveTournament(updatedTournament);
-    
-    toast({
-      title: "Discipline added",
-      description: "New discipline has been added successfully",
-    });
-  };
-
-  const handleAddLevel = (newLevel: Omit<Level, 'id'>, disciplineId: string) => {
-    if (!tournament) return;
-    
-    const level: Level = {
-      id: generateId(),
-      ...newLevel,
-      poules: []
-    };
-    
-    const updatedTournament: Tournament = { ...tournament };
-    
-    const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === disciplineId);
-    
-    if (disciplineIndex !== -1) {
-      updatedTournament.disciplines[disciplineIndex].levels = [
-        ...updatedTournament.disciplines[disciplineIndex].levels,
-        level
-      ];
-      
-      handleSaveTournament(updatedTournament);
-      
+  const handleSaveTournament = () => {
+    if (tournament) {
+      saveTournament(tournament);
       toast({
-        title: "Level added",
-        description: "New level has been added successfully",
+        title: "Changes saved",
+        description: "Tournament data has been updated successfully",
       });
     }
   };
 
-  const handleAddPoule = (newPoule: Omit<Poule, 'id' | 'matches'>, levelId: string, disciplineId: string) => {
-    if (!tournament) return;
-    
-    const poule: Poule = {
+  const handleAddDiscipline = () => {
+    if (!newDisciplineName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a discipline name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newDiscipline: Discipline = {
       id: generateId(),
-      ...newPoule,
+      name: newDisciplineName.trim(),
+      levels: []
+    };
+
+    // Add predefined levels for the discipline
+    const levels: Level[] = [
+      { id: `${newDiscipline.id}_l1`, name: "1", poules: [] },
+      { id: `${newDiscipline.id}_l2`, name: "2", poules: [] },
+      { id: `${newDiscipline.id}_l3`, name: "3", poules: [] },
+      { id: `${newDiscipline.id}_l4`, name: "4", poules: [] },
+      { id: `${newDiscipline.id}_l5`, name: "4+", poules: [] }
+    ];
+
+    newDiscipline.levels = levels;
+
+    const updatedTournament = {
+      ...tournament!,
+      disciplines: [...tournament!.disciplines, newDiscipline]
+    };
+
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
+    
+    setNewDisciplineName('');
+    setAddDisciplineDialogOpen(false);
+    
+    toast({
+      title: "Discipline added",
+      description: `${newDisciplineName} has been added to the tournament`,
+    });
+  };
+
+  const handleAddLevel = () => {
+    if (!disciplineForLevel) {
+      toast({
+        title: "Error",
+        description: "Please select a discipline",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newLevelName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a level name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const updatedTournament = { ...tournament! };
+    const disciplineIndex = updatedTournament.disciplines.findIndex(
+      d => d.id === disciplineForLevel
+    );
+
+    if (disciplineIndex === -1) return;
+
+    const newLevel: Level = {
+      id: generateId(),
+      name: newLevelName.trim(),
+      poules: []
+    };
+
+    updatedTournament.disciplines[disciplineIndex].levels.push(newLevel);
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
+    
+    setNewLevelName('');
+    setDisciplineForLevel('');
+    setAddLevelDialogOpen(false);
+    
+    toast({
+      title: "Level added",
+      description: `Level ${newLevelName} has been added to the discipline`,
+    });
+  };
+
+  const handleAddPoule = () => {
+    if (!disciplineForPoule || !levelForPoule) {
+      toast({
+        title: "Error",
+        description: "Please select both discipline and level",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newPouleName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a poule name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const updatedTournament = { ...tournament! };
+    const disciplineIndex = updatedTournament.disciplines.findIndex(
+      d => d.id === disciplineForPoule
+    );
+
+    if (disciplineIndex === -1) return;
+
+    const levelIndex = updatedTournament.disciplines[disciplineIndex].levels.findIndex(
+      l => l.id === levelForPoule
+    );
+
+    if (levelIndex === -1) return;
+
+    const newPoule: Poule = {
+      id: generateId(),
+      name: newPouleName.trim(),
       teams: [],
       matches: []
     };
+
+    updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules.push(newPoule);
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
     
-    const updatedTournament: Tournament = { ...tournament };
+    setNewPouleName('');
+    setDisciplineForPoule('');
+    setLevelForPoule('');
+    setAddPouleDialogOpen(false);
     
-    const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === disciplineId);
-    
-    if (disciplineIndex !== -1) {
-      const levelIndex = updatedTournament.disciplines[disciplineIndex].levels.findIndex(l => l.id === levelId);
-      
-      if (levelIndex !== -1) {
-        updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules = [
-          ...updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules,
-          poule
-        ];
-        
-        handleSaveTournament(updatedTournament);
-        
-        toast({
-          title: "Poule added",
-          description: "New poule has been added successfully",
-        });
-      }
-    }
+    toast({
+      title: "Poule added",
+      description: `Poule ${newPouleName} has been added to the level`,
+    });
   };
 
-  const handleAddTeam = (newTeam: Omit<Team, 'id'>, pouleId: string, levelId: string, disciplineId: string) => {
-    if (!tournament) return;
-    
-    const team: Team = {
+  const handleAddTeam = () => {
+    if (!pouleForTeam) {
+      toast({
+        title: "Error",
+        description: "Please select a poule",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!player1Name.trim() || !player2Name.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter names for both players",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Find the poule and its path in the tournament structure
+    let foundPoule: Poule | null = null;
+    let disciplineIndex = -1;
+    let levelIndex = -1;
+    let pouleIndex = -1;
+
+    for (let i = 0; i < tournament!.disciplines.length; i++) {
+      const discipline = tournament!.disciplines[i];
+      for (let j = 0; j < discipline.levels.length; j++) {
+        const level = discipline.levels[j];
+        for (let k = 0; k < level.poules.length; k++) {
+          const poule = level.poules[k];
+          if (poule.id === pouleForTeam) {
+            foundPoule = poule;
+            disciplineIndex = i;
+            levelIndex = j;
+            pouleIndex = k;
+            break;
+          }
+        }
+        if (foundPoule) break;
+      }
+      if (foundPoule) break;
+    }
+
+    if (!foundPoule) return;
+
+    const player1: Player = {
       id: generateId(),
-      ...newTeam
+      name: player1Name.trim()
     };
+
+    const player2: Player = {
+      id: generateId(),
+      name: player2Name.trim()
+    };
+
+    const newTeam: Team = {
+      id: generateId(),
+      players: [player1, player2]
+    };
+
+    const updatedTournament = { ...tournament! };
+    updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams.push(newTeam);
     
-    const updatedTournament: Tournament = { ...tournament };
+    // Generate matches for the updated poule
+    const updatedPoule = updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex];
+    updatedPoule.matches = generateMatches(updatedPoule);
     
-    const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === disciplineId);
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
     
-    if (disciplineIndex !== -1) {
-      const levelIndex = updatedTournament.disciplines[disciplineIndex].levels.findIndex(l => l.id === levelId);
-      
-      if (levelIndex !== -1) {
-        const pouleIndex = updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules.findIndex(p => p.id === pouleId);
-        
-        if (pouleIndex !== -1) {
-          updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams = [
-            ...updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams,
-            team
-          ];
-          
-          // Generate matches for the poule
-          // updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].matches = generateMatches(updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex]);
-          
-          // Generate matches for the poule
-          const poule = updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex];
-          updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].matches = generateMatches(poule);
-          
-          handleSaveTournament(updatedTournament);
-          
-          toast({
-            title: "Team added",
-            description: "New team has been added successfully",
-          });
+    setPlayer1Name('');
+    setPlayer2Name('');
+    setPouleForTeam('');
+    setAddTeamDialogOpen(false);
+    
+    toast({
+      title: "Team added",
+      description: `Team ${player1Name} & ${player2Name} has been added to the poule`,
+    });
+  };
+
+  // Handle edit functions
+  const handleEditItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
+    setCurrentItemType(type);
+    setCurrentItemId(id);
+    setCurrentParentId(parentId || null);
+    
+    // Find the item and set the edit form state
+    if (type === 'discipline') {
+      const discipline = tournament!.disciplines.find(d => d.id === id);
+      if (discipline) {
+        setEditDisciplineName(discipline.name);
+        setEditDisciplineDialogOpen(true);
+      }
+    } else if (type === 'level') {
+      const discipline = tournament!.disciplines.find(d => d.id === parentId);
+      if (discipline) {
+        const level = discipline.levels.find(l => l.id === id);
+        if (level) {
+          setEditLevelName(level.name);
+          setEditLevelDialogOpen(true);
         }
       }
+    } else if (type === 'poule') {
+      let foundPoule: Poule | null = null;
+      
+      // Find the poule
+      for (const discipline of tournament!.disciplines) {
+        for (const level of discipline.levels) {
+          if (level.id === parentId) {
+            foundPoule = level.poules.find(p => p.id === id) || null;
+            break;
+          }
+        }
+        if (foundPoule) break;
+      }
+      
+      if (foundPoule) {
+        setEditPouleName(foundPoule.name);
+        setEditPouleDialogOpen(true);
+      }
+    } else if (type === 'team') {
+      let foundTeam: Team | null = null;
+      
+      // Find the team
+      for (const discipline of tournament!.disciplines) {
+        for (const level of discipline.levels) {
+          for (const poule of level.poules) {
+            if (poule.id === parentId) {
+              foundTeam = poule.teams.find(t => t.id === id) || null;
+              break;
+            }
+          }
+          if (foundTeam) break;
+        }
+        if (foundTeam) break;
+      }
+      
+      if (foundTeam) {
+        setEditPlayer1Name(foundTeam.players[0].name);
+        setEditPlayer2Name(foundTeam.players[1].name);
+        setEditTeamDialogOpen(true);
+      }
     }
   };
-
-  const handleEditItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
-    setFormType(type);
-    setEditItemId(id);
-    setIsDialogOpen(true);
-  };
-
-  const handleEditConfirm = (editedItem: any, type: string, parentId?: string) => {
-    if (!tournament) return;
+  
+  const handleEditConfirm = () => {
+    if (!tournament || !currentItemType || !currentItemId) return;
     
     const updatedTournament = { ...tournament };
     
-    switch (type) {
-      case 'discipline':
-        const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === editedItem.id);
-        if (disciplineIndex !== -1) {
-          updatedTournament.disciplines[disciplineIndex] = {
-            ...updatedTournament.disciplines[disciplineIndex],
-            ...editedItem
-          };
-        }
-        break;
-      case 'level':
-        const disciplineIdForLevel = parentId;
-        if (!disciplineIdForLevel) return;
-        
-        const disciplineIndexForLevel = updatedTournament.disciplines.findIndex(d => d.id === disciplineIdForLevel);
-        if (disciplineIndexForLevel !== -1) {
-          const levelIndex = updatedTournament.disciplines[disciplineIndexForLevel].levels.findIndex(l => l.id === editedItem.id);
-          if (levelIndex !== -1) {
-            updatedTournament.disciplines[disciplineIndexForLevel].levels[levelIndex] = {
-              ...updatedTournament.disciplines[disciplineIndexForLevel].levels[levelIndex],
-              ...editedItem
-            };
-          }
-        }
-        break;
-      case 'poule':
-        const disciplineIdForPoule = parentId?.split('_')[0];
-        const levelIdForPoule = parentId;
-        if (!disciplineIdForPoule || !levelIdForPoule) return;
-        
-        const disciplineIndexForPoule = updatedTournament.disciplines.findIndex(d => d.id === disciplineIdForPoule);
-        if (disciplineIndexForPoule !== -1) {
-          const levelIndex = updatedTournament.disciplines[disciplineIndexForPoule].levels.findIndex(l => l.id === levelIdForPoule);
-          if (levelIndex !== -1) {
-            const pouleIndex = updatedTournament.disciplines[disciplineIndexForPoule].levels[levelIndex].poules.findIndex(p => p.id === editedItem.id);
+    if (currentItemType === 'discipline') {
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === currentItemId);
+      if (disciplineIndex === -1) return;
+      
+      updatedTournament.disciplines[disciplineIndex].name = editDisciplineName.trim();
+      setEditDisciplineDialogOpen(false);
+      
+      toast({
+        title: "Discipline updated",
+        description: `The discipline has been renamed to ${editDisciplineName}`,
+      });
+    } else if (currentItemType === 'level') {
+      if (!currentParentId) return;
+      
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === currentParentId);
+      if (disciplineIndex === -1) return;
+      
+      const levelIndex = updatedTournament.disciplines[disciplineIndex].levels.findIndex(l => l.id === currentItemId);
+      if (levelIndex === -1) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].name = editLevelName.trim();
+      setEditLevelDialogOpen(false);
+      
+      toast({
+        title: "Level updated",
+        description: `The level has been renamed to ${editLevelName}`,
+      });
+    } else if (currentItemType === 'poule') {
+      if (!currentParentId) return;
+      
+      let foundPoule = false;
+      let disciplineIndex = -1;
+      let levelIndex = -1;
+      let pouleIndex = -1;
+      
+      // Find indices for the poule
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          if (level.id === currentParentId) {
+            pouleIndex = level.poules.findIndex(p => p.id === currentItemId);
             if (pouleIndex !== -1) {
-              updatedTournament.disciplines[disciplineIndexForPoule].levels[levelIndex].poules[pouleIndex] = {
-                ...updatedTournament.disciplines[disciplineIndexForPoule].levels[levelIndex].poules[pouleIndex],
-                ...editedItem
-              };
+              foundPoule = true;
+              disciplineIndex = i;
+              levelIndex = j;
+              break;
             }
           }
         }
-        break;
-      case 'team':
-        // Logic to edit a team (if needed)
-        break;
-      default:
-        break;
+        if (foundPoule) break;
+      }
+      
+      if (!foundPoule) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].name = editPouleName.trim();
+      setEditPouleDialogOpen(false);
+      
+      toast({
+        title: "Poule updated",
+        description: `The poule has been renamed to ${editPouleName}`,
+      });
+    } else if (currentItemType === 'team') {
+      if (!currentParentId) return;
+      
+      let foundTeam = false;
+      let disciplineIndex = -1;
+      let levelIndex = -1;
+      let pouleIndex = -1;
+      let teamIndex = -1;
+      
+      // Find indices for the team
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          for (let k = 0; k < level.poules.length; k++) {
+            const poule = level.poules[k];
+            if (poule.id === currentParentId) {
+              teamIndex = poule.teams.findIndex(t => t.id === currentItemId);
+              if (teamIndex !== -1) {
+                foundTeam = true;
+                disciplineIndex = i;
+                levelIndex = j;
+                pouleIndex = k;
+                break;
+              }
+            }
+          }
+          if (foundTeam) break;
+        }
+        if (foundTeam) break;
+      }
+      
+      if (!foundTeam) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams[teamIndex].players[0].name = editPlayer1Name.trim();
+      updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams[teamIndex].players[1].name = editPlayer2Name.trim();
+      setEditTeamDialogOpen(false);
+      
+      toast({
+        title: "Team updated",
+        description: `The team players have been updated`,
+      });
     }
     
-    handleSaveTournament(updatedTournament);
-    setIsDialogOpen(false);
-    setEditItemId(null);
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
     
-    toast({
-      title: `${type} updated`,
-      description: `${type} has been updated successfully`,
-    });
+    // Reset current item
+    setCurrentItemType(null);
+    setCurrentItemId(null);
+    setCurrentParentId(null);
   };
-
+  
+  // Handle delete functions
   const handleDeleteItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
-    setDeleteItemType(type);
-    setDeleteItemId(id);
-    setDeleteItemParentId(parentId || null);
-    setIsDeleteDialogOpen(true);
+    setCurrentItemType(type);
+    setCurrentItemId(id);
+    setCurrentParentId(parentId || null);
+    setDeleteConfirmOpen(true);
   };
-
+  
   const handleDeleteConfirm = () => {
-    if (!tournament || !deleteItemId || !deleteItemType) return;
+    if (!tournament || !currentItemType || !currentItemId) return;
     
     const updatedTournament = { ...tournament };
     
-    switch (deleteItemType) {
-      case 'discipline':
-        updatedTournament.disciplines = updatedTournament.disciplines.filter(d => d.id !== deleteItemId);
-        break;
-      case 'level':
-        const disciplineIdForLevel = deleteItemParentId;
-        if (!disciplineIdForLevel) return;
-        
-        const disciplineIndexForLevel = updatedTournament.disciplines.findIndex(d => d.id === disciplineIdForLevel);
-        if (disciplineIndexForLevel !== -1) {
-          updatedTournament.disciplines[disciplineIndexForLevel].levels = updatedTournament.disciplines[disciplineIndexForLevel].levels.filter(l => l.id !== deleteItemId);
-        }
-        break;
-      case 'poule':
-        const disciplineIdForPoule = deleteItemParentId?.split('_')[0];
-        const levelIdForPoule = deleteItemParentId;
-        if (!disciplineIdForPoule || !levelIdForPoule) return;
-        
-        const disciplineIndexForPoule = updatedTournament.disciplines.findIndex(d => d.id === disciplineIdForPoule);
-        if (disciplineIndexForPoule !== -1) {
-          const levelIndex = updatedTournament.disciplines[disciplineIndexForPoule].levels.findIndex(l => l.id === levelIdForPoule);
-          if (levelIndex !== -1) {
-            updatedTournament.disciplines[disciplineIndexForPoule].levels[levelIndex].poules = updatedTournament.disciplines[disciplineIndexForPoule].levels[levelIndex].poules.filter(p => p.id !== deleteItemId);
+    if (currentItemType === 'discipline') {
+      updatedTournament.disciplines = updatedTournament.disciplines.filter(d => d.id !== currentItemId);
+      
+      toast({
+        title: "Discipline deleted",
+        description: "The discipline and all its levels, poules, and teams have been removed",
+      });
+    } else if (currentItemType === 'level') {
+      if (!currentParentId) return;
+      
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === currentParentId);
+      if (disciplineIndex === -1) return;
+      
+      updatedTournament.disciplines[disciplineIndex].levels = 
+        updatedTournament.disciplines[disciplineIndex].levels.filter(l => l.id !== currentItemId);
+      
+      toast({
+        title: "Level deleted",
+        description: "The level and all its poules and teams have been removed",
+      });
+    } else if (currentItemType === 'poule') {
+      if (!currentParentId) return;
+      
+      let levelFound = false;
+      
+      // Find and remove the poule
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          if (level.id === currentParentId) {
+            updatedTournament.disciplines[i].levels[j].poules = level.poules.filter(p => p.id !== currentItemId);
+            levelFound = true;
+            break;
           }
         }
-        break;
-      case 'team':
-        // Logic to delete a team (if needed)
-        break;
-      default:
-        break;
+        if (levelFound) break;
+      }
+      
+      toast({
+        title: "Poule deleted",
+        description: "The poule and all its teams have been removed",
+      });
+    } else if (currentItemType === 'team') {
+      if (!currentParentId) return;
+      
+      let pouleFound = false;
+      
+      // Find and remove the team
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        const discipline = updatedTournament.disciplines[i];
+        for (let j = 0; j < discipline.levels.length; j++) {
+          const level = discipline.levels[j];
+          for (let k = 0; k < level.poules.length; k++) {
+            const poule = level.poules[k];
+            if (poule.id === currentParentId) {
+              // Remove the team
+              const updatedTeams = poule.teams.filter(t => t.id !== currentItemId);
+              updatedTournament.disciplines[i].levels[j].poules[k].teams = updatedTeams;
+              
+              // Regenerate matches
+              const updatedPoule = {
+                ...updatedTournament.disciplines[i].levels[j].poules[k],
+                teams: updatedTeams
+              };
+              updatedTournament.disciplines[i].levels[j].poules[k].matches = generateMatches(updatedPoule);
+              
+              pouleFound = true;
+              break;
+            }
+          }
+          if (pouleFound) break;
+        }
+        if (pouleFound) break;
+      }
+      
+      toast({
+        title: "Team deleted",
+        description: "The team has been removed and matches have been regenerated",
+      });
     }
     
-    handleSaveTournament(updatedTournament);
-    setIsDeleteDialogOpen(false);
-    setDeleteItemType(null);
-    setDeleteItemId(null);
-    setDeleteItemParentId(null);
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
     
-    toast({
-      title: `${deleteItemType} deleted`,
-      description: `${deleteItemType} has been deleted successfully`,
-    });
+    // Reset dialogs and current item
+    setDeleteConfirmOpen(false);
+    setCurrentItemType(null);
+    setCurrentItemId(null);
+    setCurrentParentId(null);
   };
 
-  const handleNavigationChange = (newState: any) => {
+  const handleNavigationChange = (newState: NavigationState) => {
     setNavigationState(newState);
-    setSelectedDiscipline(newState.selectedDiscipline);
-    setSelectedLevel(newState.selectedLevel);
-    setSelectedPoule(newState.selectedPoule);
   };
 
-  const getPoulesForSelect = (levelId: string): Poule[] => {
-    if (!tournament) return [];
-    
-    for (const discipline of tournament.disciplines) {
-      for (const level of discipline.levels) {
-        if (level.id === levelId) {
-          return level.poules;
-        }
-      }
-    }
-    
-    return [];
+  const getPoulesForSelect = (): { value: string; label: string; }[] => {
+    const poules: { value: string; label: string; }[] = [];
+
+    tournament?.disciplines.forEach(discipline => {
+      discipline.levels.forEach(level => {
+        level.poules.forEach(poule => {
+          poules.push({
+            value: poule.id,
+            label: `${discipline.name} - Level ${level.name} - ${poule.name}`
+          });
+        });
+      });
+    });
+
+    return poules;
   };
 
-  const getTeamsForPoule = (pouleId: string): Team[] => {
-    if (!tournament) return [];
-    
-    for (const discipline of tournament.disciplines) {
-      for (const level of discipline.levels) {
-        for (const poule of level.poules) {
+  const getTeamsForPoule = (pouleId: string): { value: string; label: string; }[] => {
+    const teams: { value: string; label: string; }[] = [];
+
+    // Find the poule and get its teams
+    tournament?.disciplines.forEach(discipline => {
+      discipline.levels.forEach(level => {
+        level.poules.forEach(poule => {
           if (poule.id === pouleId) {
-            return poule.teams;
+            poule.teams.forEach(team => {
+              teams.push({
+                value: team.id,
+                label: `${team.players[0].name} & ${team.players[1].name}`
+              });
+            });
           }
-        }
-      }
-    }
-    
-    return [];
+        });
+      });
+    });
+
+    return teams;
   };
 
   const handleLogout = () => {
@@ -408,230 +737,547 @@ const Admin = () => {
     }
   };
   
+  // Optimize match order for a poule
+  const handleOptimizeMatches = (pouleId: string) => {
+    if (!tournament) return;
+    
+    const updatedTournament = { ...tournament };
+    let pouleFound = false;
+    
+    // Find the poule and optimize its matches
+    for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+      const discipline = updatedTournament.disciplines[i];
+      for (let j = 0; j < discipline.levels.length; j++) {
+        const level = discipline.levels[j];
+        for (let k = 0; k < level.poules.length; k++) {
+          const poule = level.poules[k];
+          if (poule.id === pouleId) {
+            updatedTournament.disciplines[i].levels[j].poules[k].matches = 
+              optimizeMatchOrder(poule.matches);
+            pouleFound = true;
+            break;
+          }
+        }
+        if (pouleFound) break;
+      }
+      if (pouleFound) break;
+    }
+    
+    if (pouleFound) {
+      setTournament(updatedTournament);
+      saveTournament(updatedTournament);
+      
+      toast({
+        title: "Matches optimized",
+        description: "The match order has been optimized to minimize waiting time",
+      });
+    }
+  };
+
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <div className="w-full max-w-md p-6 bg-card rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold text-center mb-4">Admin Login</h2>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="username">Username</Label>
-              <Input
-                type="text"
-                id="username"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                type="password"
-                id="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <Button className="w-full" onClick={handleAuthenticated}>
-              Login
-            </Button>
-          </div>
-        </div>
+      <div className="min-h-screen bg-background">
+        <NavBar />
+        <main className="container px-4 pt-24 pb-16 mx-auto">
+          <AdminAuth onAuthenticated={handleAuthenticated} />
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Admin Panel</h1>
-        <Button variant="destructive" onClick={handleLogout}>
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </Button>
-      </div>
+    <div className="min-h-screen bg-background">
+      <NavBar />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Tournament Structure */}
-        <div className="md:col-span-1">
-          <TournamentStructure
-            disciplines={disciplines}
-            isAdmin={true}
-            navigationState={navigationState}
-            onNavigationChange={handleNavigationChange}
-            onEditItem={handleEditItem}
-            onDeleteItem={handleDeleteItem}
-            onViewTeams={handleViewTeams}
-          />
+      <main className="container px-4 pt-24 pb-16 mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 animate-fade-in">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight mb-2">Admin Panel</h1>
+            <p className="text-muted-foreground">
+              Manage tournament disciplines, levels, poules, and teams
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+            <Button 
+              variant="outline" 
+              onClick={handleLogout}
+              className="transition-all duration-200"
+            >
+              Logout
+            </Button>
+            <Button 
+              className="transition-all duration-200 relative overflow-hidden group"
+              onClick={handleSaveTournament}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                <Save className="h-4 w-4" />
+                Save Changes
+              </span>
+              <span className="absolute inset-0 bg-primary/20 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+            </Button>
+          </div>
         </div>
         
-        {/* Add New Item Form */}
-        <div className="md:col-span-1">
-          <AdminForm
-            onAddDiscipline={handleAddDiscipline}
-            onAddLevel={handleAddLevel}
-            onAddPoule={handleAddPoule}
-            onAddTeam={handleAddTeam}
-            selectedDiscipline={selectedDiscipline}
-            selectedLevel={selectedLevel}
-            selectedPoule={selectedPoule}
-            getPoulesForSelect={getPoulesForSelect}
-            getTeamsForPoule={getTeamsForPoule}
-          />
+        <div className="grid grid-cols-1 gap-6 mb-12 animate-fade-in">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Tournament Components</CardTitle>
+              <CardDescription>
+                Create new disciplines, levels, poules, and teams
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Dialog open={addDisciplineDialogOpen} onOpenChange={setAddDisciplineDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all">
+                      <PlusCircle className="h-5 w-5" />
+                      <span>Add Discipline</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Discipline</DialogTitle>
+                      <DialogDescription>
+                        Create a new tournament discipline.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Discipline name"
+                          value={newDisciplineName}
+                          onChange={(e) => setNewDisciplineName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddDisciplineDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddDiscipline}>
+                        Add Discipline
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={addLevelDialogOpen} onOpenChange={setAddLevelDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all">
+                      <PlusCircle className="h-5 w-5" />
+                      <span>Add Level</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Level</DialogTitle>
+                      <DialogDescription>
+                        Create a new level within a discipline.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Select value={disciplineForLevel} onValueChange={setDisciplineForLevel}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Discipline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tournament?.disciplines.map((discipline) => (
+                              <SelectItem key={discipline.id} value={discipline.id}>
+                                {discipline.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Level name (e.g. 1, 2, 3, 4, 4+)"
+                          value={newLevelName}
+                          onChange={(e) => setNewLevelName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddLevelDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddLevel}>
+                        Add Level
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={addPouleDialogOpen} onOpenChange={setAddPouleDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all">
+                      <PlusCircle className="h-5 w-5" />
+                      <span>Add Poule</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Poule</DialogTitle>
+                      <DialogDescription>
+                        Create a new poule within a level.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Select value={disciplineForPoule} onValueChange={(value) => {
+                          setDisciplineForPoule(value);
+                          setLevelForPoule(''); // Reset level when discipline changes
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Discipline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tournament?.disciplines.map((discipline) => (
+                              <SelectItem key={discipline.id} value={discipline.id}>
+                                {discipline.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Select value={levelForPoule} onValueChange={setLevelForPoule}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {disciplineForPoule && tournament?.disciplines
+                              .find(d => d.id === disciplineForPoule)?.levels.map((level) => (
+                                <SelectItem key={level.id} value={level.id}>
+                                  Level {level.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Poule name (e.g. A, B, C, etc.)"
+                          value={newPouleName}
+                          onChange={(e) => setNewPouleName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddPouleDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddPoule}>
+                        Add Poule
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={addTeamDialogOpen} onOpenChange={setAddTeamDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all">
+                      <PlusCircle className="h-5 w-5" />
+                      <span>Add Team</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Team</DialogTitle>
+                      <DialogDescription>
+                        Create a new team within a poule.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Select value={pouleForTeam} onValueChange={setPouleForTeam}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Poule" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getPoulesForSelect().map((poule) => (
+                              <SelectItem key={poule.value} value={poule.value}>
+                                {poule.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Player 1 name"
+                          value={player1Name}
+                          onChange={(e) => setPlayer1Name(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Player 2 name"
+                          value={player2Name}
+                          onChange={(e) => setPlayer2Name(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddTeamDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddTeam}>
+                        Add Team
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {tournament && (
+            <TournamentStructure
+              disciplines={tournament.disciplines}
+              isAdmin={true}
+              navigationState={navigationState}
+              onNavigationChange={handleNavigationChange}
+              onEditItem={handleEditItem}
+              onDeleteItem={handleDeleteItem}
+              onViewTeams={handleViewTeams}
+            />
+          )}
         </div>
-      </div>
-      
-      {/* Edit Item Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit {formType}</DialogTitle>
-            <DialogDescription>
-              Make changes to your {formType} here. Click save when you're done.
-            </DialogDescription>
-          </DialogHeader>
-          <EditForm
-            type={formType}
-            itemId={editItemId}
-            tournament={tournament}
-            onEditConfirm={handleEditConfirm}
-            onClose={() => setIsDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Delete Confirmation</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this {deleteItemType}? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <p>Please confirm that you want to delete this {deleteItemType}.</p>
-          </div>
-          <div className="flex justify-end space-x-2">
-            <Button variant="secondary" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>Delete</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Teams View Dialog */}
-      <TeamsViewDialog
-        isOpen={teamsViewDialogOpen}
-        onClose={() => setTeamsViewDialogOpen(false)}
-        teams={currentPoule?.teams || []}
-      />
-    </div>
-  );
-};
-
-interface EditFormProps {
-  type: string;
-  itemId: string | null;
-  tournament: Tournament | null;
-  onEditConfirm: (editedItem: any, type: string, parentId?: string) => void;
-  onClose: () => void;
-}
-
-const EditForm: React.FC<EditFormProps> = ({ type, itemId, tournament, onEditConfirm, onClose }) => {
-  const [name, setName] = useState('');
-  
-  useEffect(() => {
-    if (itemId && tournament) {
-      let item;
-      let parentId;
-      
-      switch (type) {
-        case 'discipline':
-          item = tournament.disciplines.find(d => d.id === itemId);
-          break;
-        case 'level':
-          for (const discipline of tournament.disciplines) {
-            const level = discipline.levels.find(l => l.id === itemId);
-            if (level) {
-              item = level;
-              parentId = discipline.id;
-              break;
-            }
-          }
-          break;
-        case 'poule':
-          for (const discipline of tournament.disciplines) {
-            for (const level of discipline.levels) {
-              const poule = level.poules.find(p => p.id === itemId);
-              if (poule) {
-                item = poule;
-                parentId = level.id;
-                break;
-              }
-            }
-            if (item) break;
-          }
-          break;
-        default:
-          break;
-      }
-      
-      if (item) {
-        setName(item.name || '');
-      }
-    }
-  }, [itemId, type, tournament]);
-  
-  const handleSave = () => {
-    if (itemId) {
-      onEditConfirm({ id: itemId, name }, type, getParentId(type, itemId, tournament));
-      onClose();
-    }
-  };
-  
-  const getParentId = (type: string, itemId: string, tournament: Tournament | null): string | undefined => {
-    if (!tournament) return undefined;
-    
-    switch (type) {
-      case 'level':
-        for (const discipline of tournament.disciplines) {
-          if (discipline.levels.find(level => level.id === itemId)) {
-            return discipline.id;
-          }
-        }
-        break;
-      case 'poule':
-        for (const discipline of tournament.disciplines) {
-          for (const level of discipline.levels) {
-            if (level.poules.find(poule => poule.id === itemId)) {
-              return level.id;
-            }
-          }
-        }
-        break;
-      default:
-        return undefined;
-    }
-    
-    return undefined;
-  };
-  
-  return (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="name" className="text-right">
-          Name
-        </Label>
-        <Input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" />
-      </div>
-      <div className="flex justify-end space-x-2">
-        <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave}>Save</Button>
-      </div>
+        
+        {/* Edit Dialogs */}
+        <Dialog open={editDisciplineDialogOpen} onOpenChange={setEditDisciplineDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Discipline</DialogTitle>
+              <DialogDescription>
+                Update the discipline name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Discipline name"
+                  value={editDisciplineName}
+                  onChange={(e) => setEditDisciplineName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDisciplineDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={editLevelDialogOpen} onOpenChange={setEditLevelDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Level</DialogTitle>
+              <DialogDescription>
+                Update the level name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Level name"
+                  value={editLevelName}
+                  onChange={(e) => setEditLevelName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditLevelDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={editPouleDialogOpen} onOpenChange={setEditPouleDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Poule</DialogTitle>
+              <DialogDescription>
+                Update the poule name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Poule name"
+                  value={editPouleName}
+                  onChange={(e) => setEditPouleName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPouleDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Team</DialogTitle>
+              <DialogDescription>
+                Update the player names.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 1 name"
+                  value={editPlayer1Name}
+                  onChange={(e) => setEditPlayer1Name(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 2 name"
+                  value={editPlayer2Name}
+                  onChange={(e) => setEditPlayer2Name(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditTeamDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {currentItemType === 'discipline' && "This will delete the discipline and all its levels, poules, and teams."}
+                {currentItemType === 'level' && "This will delete the level and all its poules and teams."}
+                {currentItemType === 'poule' && "This will delete the poule and all its teams."}
+                {currentItemType === 'team' && "This will delete the team and regenerate matches for the poule."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        
+        {/* Teams View Dialog */}
+        <Dialog open={teamsViewDialogOpen} onOpenChange={setTeamsViewDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 pb-2">
+                <Users className="h-5 w-5 text-primary" />
+                {currentPoule?.name ? `Teams in Poule ${currentPoule.name}` : 'Poule Teams'}
+              </DialogTitle>
+              <DialogDescription>
+                View teams and their rankings in this poule
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              {currentPoule && (
+                <>
+                  {currentPoule.teams.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No teams have been added to this poule yet.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-6">
+                        <h3 className="text-lg font-medium mb-2">Team Standings</h3>
+                        <TeamStandings 
+                          standings={calculateStandings(currentPoule)} 
+                        />
+                      </div>
+                      
+                      <Separator className="my-4" />
+                      
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Team Management</h3>
+                        <div className="space-y-2">
+                          {currentPoule.teams.map((team) => (
+                            <div 
+                              key={team.id} 
+                              className="flex items-center justify-between p-3 rounded-md border"
+                            >
+                              <div className="font-medium">
+                                {team.players[0].name} & {team.players[1].name}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditItem('team', team.id, currentPoule.id)}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteItem('team', team.id, currentPoule.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <Separator className="my-4" />
+                      
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Match Management</h3>
+                        <Button 
+                          onClick={() => handleOptimizeMatches(currentPoule.id)}
+                          className="w-full"
+                        >
+                          Optimize Match Order
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTeamsViewDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </main>
     </div>
   );
 };
