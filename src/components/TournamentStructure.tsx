@@ -17,6 +17,7 @@ interface TournamentStructureProps {
   onNavigationChange?: (newState: NavigationState) => void;
   onEditItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
   onDeleteItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
+  onViewTeams?: (pouleId: string) => void;
 }
 
 const TournamentStructure = ({ 
@@ -25,7 +26,8 @@ const TournamentStructure = ({
   navigationState,
   onNavigationChange,
   onEditItem,
-  onDeleteItem
+  onDeleteItem,
+  onViewTeams
 }: TournamentStructureProps) => {
   const [selectedDiscipline, setSelectedDiscipline] = useState<string | undefined>(
     navigationState?.selectedDiscipline || (disciplines.length > 0 ? disciplines[0].id : undefined)
@@ -189,15 +191,9 @@ const TournamentStructure = ({
                             const winnerNames = getTeamNames(poule);
                             
                             return (
-                              <Link
-                                key={poule.id}
-                                to={isAdmin ? "#" : `/poule/${poule.id}`}
-                                className={!isAdmin ? "block" : "pointer-events-none"}
-                                onClick={(e) => {
-                                  if (isAdmin) {
-                                    e.preventDefault();
-                                  }
-                                }}
+                              <div 
+                                key={poule.id} 
+                                className="block"
                               >
                                 <Card className={cn(
                                   "h-full transition-all duration-300 hover:shadow-lg border border-border/60",
@@ -213,11 +209,15 @@ const TournamentStructure = ({
                                             variant="ghost" 
                                             size="icon" 
                                             className="h-7 w-7"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              e.preventDefault();
-                                              onEditItem && onEditItem('poule', poule.id, level.id);
-                                            }}
+                                            onClick={() => onViewTeams && onViewTeams(poule.id)}
+                                          >
+                                            <Users className="h-3.5 w-3.5" />
+                                          </Button>
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-7 w-7"
+                                            onClick={() => onEditItem && onEditItem('poule', poule.id, level.id)}
                                           >
                                             <Edit className="h-3.5 w-3.5" />
                                           </Button>
@@ -225,17 +225,15 @@ const TournamentStructure = ({
                                             variant="ghost" 
                                             size="icon" 
                                             className="h-7 w-7"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              e.preventDefault();
-                                              onDeleteItem && onDeleteItem('poule', poule.id, level.id);
-                                            }}
+                                            onClick={() => onDeleteItem && onDeleteItem('poule', poule.id, level.id)}
                                           >
                                             <Trash className="h-3.5 w-3.5" />
                                           </Button>
                                         </div>
                                       ) : (
-                                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                        <Link to={`/poule/${poule.id}`}>
+                                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                        </Link>
                                       )}
                                     </CardTitle>
                                     <CardDescription className="flex items-center gap-1">
@@ -257,7 +255,7 @@ const TournamentStructure = ({
                                     </CardFooter>
                                   )}
                                 </Card>
-                              </Link>
+                              </div>
                             );
                           })}
                         </div>
