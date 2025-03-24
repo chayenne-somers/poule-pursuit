@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -15,10 +16,12 @@ import {
   generateId, 
   generateMatches, 
   initializeTournament,
-  optimizeMatchOrder
+  optimizeMatchOrder,
+  calculateStandings
 } from '@/utils/tournamentUtils';
 import AdminAuth from '@/components/AdminAuth';
 import TournamentStructure from '@/components/TournamentStructure';
+import TeamStandings from '@/components/TeamStandings';
 import NavBar from '@/components/NavBar';
 
 import { Button } from "@/components/ui/button";
@@ -943,4 +946,340 @@ const Admin = () => {
                       <div className="space-y-2">
                         <Select value={levelForPoule} onValueChange={setLevelForPoule}>
                           <SelectTrigger>
-                            <SelectValue placeholder="
+                            <SelectValue placeholder="Select Level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {disciplineForPoule && tournament?.disciplines
+                              .find(d => d.id === disciplineForPoule)?.levels.map((level) => (
+                                <SelectItem key={level.id} value={level.id}>
+                                  Level {level.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Poule name (e.g. A, B, C, etc.)"
+                          value={newPouleName}
+                          onChange={(e) => setNewPouleName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddPouleDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddPoule}>
+                        Add Poule
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={addTeamDialogOpen} onOpenChange={setAddTeamDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all">
+                      <PlusCircle className="h-5 w-5" />
+                      <span>Add Team</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Team</DialogTitle>
+                      <DialogDescription>
+                        Create a new team within a poule.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Select value={pouleForTeam} onValueChange={setPouleForTeam}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Poule" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getPoulesForSelect().map((poule) => (
+                              <SelectItem key={poule.value} value={poule.value}>
+                                {poule.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Player 1 name"
+                          value={player1Name}
+                          onChange={(e) => setPlayer1Name(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Player 2 name"
+                          value={player2Name}
+                          onChange={(e) => setPlayer2Name(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddTeamDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddTeam}>
+                        Add Team
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {tournament && (
+            <TournamentStructure
+              disciplines={tournament.disciplines}
+              isAdmin={true}
+              navigationState={navigationState}
+              onNavigationChange={handleNavigationChange}
+              onEditItem={handleEditItem}
+              onDeleteItem={handleDeleteItem}
+              onViewTeams={handleViewTeams}
+            />
+          )}
+        </div>
+        
+        {/* Edit Dialogs */}
+        <Dialog open={editDisciplineDialogOpen} onOpenChange={setEditDisciplineDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Discipline</DialogTitle>
+              <DialogDescription>
+                Update the discipline name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Discipline name"
+                  value={editDisciplineName}
+                  onChange={(e) => setEditDisciplineName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDisciplineDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={editLevelDialogOpen} onOpenChange={setEditLevelDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Level</DialogTitle>
+              <DialogDescription>
+                Update the level name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Level name"
+                  value={editLevelName}
+                  onChange={(e) => setEditLevelName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditLevelDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={editPouleDialogOpen} onOpenChange={setEditPouleDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Poule</DialogTitle>
+              <DialogDescription>
+                Update the poule name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Poule name"
+                  value={editPouleName}
+                  onChange={(e) => setEditPouleName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPouleDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Team</DialogTitle>
+              <DialogDescription>
+                Update the player names.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 1 name"
+                  value={editPlayer1Name}
+                  onChange={(e) => setEditPlayer1Name(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 2 name"
+                  value={editPlayer2Name}
+                  onChange={(e) => setEditPlayer2Name(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditTeamDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {currentItemType === 'discipline' && "This will delete the discipline and all its levels, poules, and teams."}
+                {currentItemType === 'level' && "This will delete the level and all its poules and teams."}
+                {currentItemType === 'poule' && "This will delete the poule and all its teams."}
+                {currentItemType === 'team' && "This will delete the team and regenerate matches for the poule."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        
+        {/* Teams View Dialog */}
+        <Dialog open={teamsViewDialogOpen} onOpenChange={setTeamsViewDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 pb-2">
+                <Users className="h-5 w-5 text-primary" />
+                {currentPoule?.name ? `Teams in Poule ${currentPoule.name}` : 'Poule Teams'}
+              </DialogTitle>
+              <DialogDescription>
+                View teams and their rankings in this poule
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              {currentPoule && (
+                <>
+                  {currentPoule.teams.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No teams have been added to this poule yet.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-6">
+                        <h3 className="text-lg font-medium mb-2">Team Standings</h3>
+                        <TeamStandings 
+                          standings={calculateStandings(currentPoule)} 
+                        />
+                      </div>
+                      
+                      <Separator className="my-4" />
+                      
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Team Management</h3>
+                        <div className="space-y-2">
+                          {currentPoule.teams.map((team) => (
+                            <div 
+                              key={team.id} 
+                              className="flex items-center justify-between p-3 rounded-md border"
+                            >
+                              <div className="font-medium">
+                                {team.players[0].name} & {team.players[1].name}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditItem('team', team.id, currentPoule.id)}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteItem('team', team.id, currentPoule.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <Separator className="my-4" />
+                      
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Match Management</h3>
+                        <Button 
+                          onClick={() => handleOptimizeMatches(currentPoule.id)}
+                          className="w-full"
+                        >
+                          Optimize Match Order
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTeamsViewDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </main>
+    </div>
+  );
+};
+
+export default Admin;
