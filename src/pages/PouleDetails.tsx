@@ -114,11 +114,11 @@ const PouleDetails = () => {
     const sets = [...match.sets];
     const set = { ...sets[setIndex] };
     
-    // Update the score
+    // Update the score - ensure we handle empty inputs correctly
     if (team === 'A') {
-      set.scoreA = value === '' ? undefined : parseInt(value);
+      set.scoreA = value === '' ? undefined : parseInt(value, 10);
     } else {
-      set.scoreB = value === '' ? undefined : parseInt(value);
+      set.scoreB = value === '' ? undefined : parseInt(value, 10);
     }
     
     sets[setIndex] = set;
