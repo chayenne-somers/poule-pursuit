@@ -1,4 +1,3 @@
-
 import { Match, Poule, Team, SetScore } from "../types/tournament";
 
 // Generate a unique ID
@@ -318,4 +317,28 @@ export const initializeTournament = () => {
   if (!localStorage.getItem('adminCredentials')) {
     saveAdminCredentials('admin', 'admin123');
   }
+};
+
+// Get the number of sets won by each team in a match
+export const getSetsWon = (match: Match) => {
+  let setsWonA = 0;
+  let setsWonB = 0;
+  
+  match.sets.forEach(set => {
+    if (isSetComplete(set)) {
+      if (set.scoreA! > set.scoreB!) {
+        setsWonA++;
+      } else if (set.scoreB! > set.scoreA!) {
+        setsWonB++;
+      }
+    }
+  });
+  
+  return { setsWonA, setsWonB };
+};
+
+// Check if a team won a match (won 2 or more sets)
+export const didTeamWinMatch = (match: Match, isTeamA: boolean) => {
+  const { setsWonA, setsWonB } = getSetsWon(match);
+  return isTeamA ? setsWonA >= 2 : setsWonB >= 2;
 };

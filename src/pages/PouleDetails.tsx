@@ -16,28 +16,16 @@ import {
   isMatchComplete
 } from '@/utils/tournamentUtils';
 import TeamStandings from '@/components/TeamStandings';
+import PouleWinnerCard from '@/components/PouleWinnerCard';
+import MatchCard from '@/components/MatchCard';
 import NavBar from '@/components/NavBar';
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { 
-  Trophy, 
   ChevronLeft, 
   Save,
-  ArrowRight,
-  CheckCircle
+  ArrowRight
 } from 'lucide-react';
 
 const PouleDetails = () => {
@@ -218,30 +206,6 @@ const PouleDetails = () => {
     }
   };
 
-  // Get the number of sets won by each team in a match
-  const getSetsWon = (match: Match) => {
-    let setsWonA = 0;
-    let setsWonB = 0;
-    
-    match.sets.forEach(set => {
-      if (isSetComplete(set)) {
-        if (set.scoreA! > set.scoreB!) {
-          setsWonA++;
-        } else if (set.scoreB! > set.scoreA!) {
-          setsWonB++;
-        }
-      }
-    });
-    
-    return { setsWonA, setsWonB };
-  };
-
-  // Check if a team won a match (won 2 or more sets)
-  const didTeamWinMatch = (match: Match, isTeamA: boolean) => {
-    const { setsWonA, setsWonB } = getSetsWon(match);
-    return isTeamA ? setsWonA >= 2 : setsWonB >= 2;
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
@@ -287,139 +251,22 @@ const PouleDetails = () => {
             </div>
             
             {/* Winner Card */}
-            {getPouleWinner(poule) && (
-              <div className="mb-8">
-                <Card className="bg-green-50 border-green-200">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <Trophy className="h-6 w-6 text-green-600" />
-                      <div>
-                        <p className="text-green-800 font-medium">Poule Winner</p>
-                        <p className="text-lg font-semibold">
-                          {getPouleWinner(poule)?.players[0].name} & {getPouleWinner(poule)?.players[1].name}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+            <PouleWinnerCard winner={getPouleWinner(poule)} />
             
             {/* Matches */}
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold">Matches</h2>
               
-              {matches.map((match, matchIndex) => {
-                const { setsWonA, setsWonB } = getSetsWon(match);
-                const teamAWon = didTeamWinMatch(match, true);
-                const teamBWon = didTeamWinMatch(match, false);
-                
-                return (
-                  <Card key={match.id} className={`
-                    ${match.completed ? 'border-2' : 'border'}
-                    ${teamAWon ? 'border-green-500' : teamBWon ? 'border-blue-500' : 'border-border'}
-                  `}>
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="text-lg">Match {matchIndex + 1}</CardTitle>
-                        <div className="flex items-center gap-2">
-                          {match.completed && (
-                            <Badge className={teamAWon ? 'bg-green-500' : 'bg-blue-500'}>
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Completed
-                            </Badge>
-                          )}
-                          {isAdmin && (
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => handleSaveMatch(matchIndex)}
-                              className="h-8 px-3"
-                            >
-                              <Save className="h-3.5 w-3.5 mr-1" />
-                              Save
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <CardDescription>
-                        Order: {match.order}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="text-center font-medium">Team</div>
-                        <div className="text-center font-medium">Sets ({match.sets.length})</div>
-                        <div className="text-center font-medium">Result</div>
-                      </div>
-                      
-                      {/* Team A */}
-                      <div className="grid grid-cols-3 gap-4 mb-6 items-center">
-                        <div className={`${teamAWon ? 'font-semibold text-green-600' : ''}`}>
-                          {match.teamA.players[0].name} & <br />
-                          {match.teamA.players[1].name}
-                        </div>
-                        <div className="flex justify-center gap-2">
-                          {match.sets.map((set, setIndex) => (
-                            <div key={setIndex} className="w-14">
-                              {isAdmin ? (
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={set.scoreA !== undefined ? set.scoreA : ''}
-                                  onChange={(e) => handleScoreChange(matchIndex, setIndex, 'A', e.target.value)}
-                                  className="h-8 text-center"
-                                />
-                              ) : (
-                                <div className="border rounded px-2 py-1 text-center">
-                                  {set.scoreA !== undefined ? set.scoreA : '-'}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="text-center">
-                          <span className={`text-lg ${teamAWon ? 'font-bold text-green-600' : ''}`}>
-                            {setsWonA}
-                          </span> sets won
-                        </div>
-                      </div>
-                      
-                      {/* Team B */}
-                      <div className="grid grid-cols-3 gap-4 items-center">
-                        <div className={`${teamBWon ? 'font-semibold text-blue-600' : ''}`}>
-                          {match.teamB.players[0].name} & <br />
-                          {match.teamB.players[1].name}
-                        </div>
-                        <div className="flex justify-center gap-2">
-                          {match.sets.map((set, setIndex) => (
-                            <div key={setIndex} className="w-14">
-                              {isAdmin ? (
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={set.scoreB !== undefined ? set.scoreB : ''}
-                                  onChange={(e) => handleScoreChange(matchIndex, setIndex, 'B', e.target.value)}
-                                  className="h-8 text-center"
-                                />
-                              ) : (
-                                <div className="border rounded px-2 py-1 text-center">
-                                  {set.scoreB !== undefined ? set.scoreB : '-'}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="text-center">
-                          <span className={`text-lg ${teamBWon ? 'font-bold text-blue-600' : ''}`}>
-                            {setsWonB}
-                          </span> sets won
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+              {matches.map((match, matchIndex) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  matchIndex={matchIndex}
+                  isAdmin={isAdmin}
+                  onScoreChange={handleScoreChange}
+                  onSaveMatch={handleSaveMatch}
+                />
+              ))}
             </div>
           </>
         ) : (
