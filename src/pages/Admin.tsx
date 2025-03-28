@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -867,7 +868,11 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all" onClick={() => setCsvImportDialogOpen(true)}>
+                <Button 
+                  variant="outline" 
+                  className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all" 
+                  onClick={() => setCsvImportDialogOpen(true)}
+                >
                   <Upload className="h-5 w-5" />
                   <span>Import Teams (CSV)</span>
                 </Button>
@@ -936,3 +941,361 @@ const Admin = () => {
                         </Select>
                       </div>
                       <div className="space-y-2">
+                        <Input
+                          placeholder="Level name"
+                          value={newLevelName}
+                          onChange={(e) => setNewLevelName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddLevelDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddLevel}>
+                        Add Level
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={addPouleDialogOpen} onOpenChange={setAddPouleDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all">
+                      <PlusCircle className="h-5 w-5" />
+                      <span>Add Poule</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Poule</DialogTitle>
+                      <DialogDescription>
+                        Create a new poule within a level.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Select value={disciplineForPoule} onValueChange={setDisciplineForPoule}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Discipline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tournament?.disciplines.map((discipline) => (
+                              <SelectItem key={discipline.id} value={discipline.id}>
+                                {discipline.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {disciplineForPoule && (
+                        <div className="space-y-2">
+                          <Select value={levelForPoule} onValueChange={setLevelForPoule}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {tournament?.disciplines
+                                .find(d => d.id === disciplineForPoule)
+                                ?.levels.map((level) => (
+                                  <SelectItem key={level.id} value={level.id}>
+                                    Level {level.name}
+                                  </SelectItem>
+                                ))
+                              }
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Poule name"
+                          value={newPouleName}
+                          onChange={(e) => setNewPouleName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddPouleDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddPoule}>
+                        Add Poule
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={addTeamDialogOpen} onOpenChange={setAddTeamDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary transition-all">
+                      <PlusCircle className="h-5 w-5" />
+                      <span>Add Team</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Team</DialogTitle>
+                      <DialogDescription>
+                        Create a new team within a poule.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Select value={pouleForTeam} onValueChange={setPouleForTeam}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Poule" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getPoulesForSelect().map((poule) => (
+                              <SelectItem key={poule.value} value={poule.value}>
+                                {poule.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Player 1 name"
+                          value={player1Name}
+                          onChange={(e) => setPlayer1Name(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Player 2 name"
+                          value={player2Name}
+                          onChange={(e) => setPlayer2Name(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddTeamDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddTeam}>
+                        Add Team
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tournament Structure */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tournament Structure</CardTitle>
+              <CardDescription>
+                View and manage disciplines, levels, poules, and teams
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="text-center py-8">Loading tournament data...</div>
+              ) : (
+                <TournamentStructure 
+                  tournament={tournament!}
+                  navigationState={navigationState}
+                  onNavigationChange={handleNavigationChange}
+                  onEdit={handleEditItem}
+                  onDelete={handleDeleteItem}
+                  onViewTeams={handleViewTeams}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Edit Discipline Dialog */}
+        <Dialog open={editDisciplineDialogOpen} onOpenChange={setEditDisciplineDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Discipline</DialogTitle>
+              <DialogDescription>
+                Update the discipline's name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Discipline name"
+                  value={editDisciplineName}
+                  onChange={(e) => setEditDisciplineName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDisciplineDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Edit Level Dialog */}
+        <Dialog open={editLevelDialogOpen} onOpenChange={setEditLevelDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Level</DialogTitle>
+              <DialogDescription>
+                Update the level's name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Level name"
+                  value={editLevelName}
+                  onChange={(e) => setEditLevelName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditLevelDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Edit Poule Dialog */}
+        <Dialog open={editPouleDialogOpen} onOpenChange={setEditPouleDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Poule</DialogTitle>
+              <DialogDescription>
+                Update the poule's name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Poule name"
+                  value={editPouleName}
+                  onChange={(e) => setEditPouleName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPouleDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Edit Team Dialog */}
+        <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Team</DialogTitle>
+              <DialogDescription>
+                Update the team player names.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 1 name"
+                  value={editPlayer1Name}
+                  onChange={(e) => setEditPlayer1Name(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Player 2 name"
+                  value={editPlayer2Name}
+                  onChange={(e) => setEditPlayer2Name(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditTeamDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditConfirm}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {currentItemType === 'discipline' && "Delete Discipline"}
+                {currentItemType === 'level' && "Delete Level"}
+                {currentItemType === 'poule' && "Delete Poule"}
+                {currentItemType === 'team' && "Delete Team"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {currentItemType === 'discipline' && "This will delete the discipline and all its levels, poules, and teams. This action cannot be undone."}
+                {currentItemType === 'level' && "This will delete the level and all its poules and teams. This action cannot be undone."}
+                {currentItemType === 'poule' && "This will delete the poule and all its teams. This action cannot be undone."}
+                {currentItemType === 'team' && "This will delete the team. This action cannot be undone."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* CSV Import Dialog */}
+        <Dialog open={csvImportDialogOpen} onOpenChange={setCsvImportDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Import Teams from CSV</DialogTitle>
+              <DialogDescription>
+                Upload a CSV file to import multiple teams at once.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <TeamCsvImport 
+                poules={getAllPoules()} 
+                onImport={(pouleId, teams) => {
+                  handleImportTeams(pouleId, teams);
+                  setCsvImportDialogOpen(false);
+                  toast({
+                    title: "Teams imported",
+                    description: `Successfully added ${teams.length} teams`,
+                  });
+                }}
+                onCancel={() => setCsvImportDialogOpen(false)}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Teams View Dialog */}
+        <TeamsViewDialog 
+          open={teamsViewDialogOpen}
+          onOpenChange={setTeamsViewDialogOpen}
+          poule={currentPoule}
+        />
+      </main>
+    </div>
+  );
+};
+
+export default Admin;
