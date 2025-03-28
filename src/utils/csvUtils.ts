@@ -2,10 +2,11 @@
 import { Team, Player } from "@/types/tournament";
 import { generateId } from "./tournamentUtils";
 
-// Define the expected CSV format for teams
+// Define the expected CSV format for teams with poule information
 export interface TeamCsvRow {
   player1Name: string;
   player2Name: string;
+  pouleName: string;
 }
 
 /**
@@ -27,8 +28,9 @@ export const parseTeamCsv = (csvContent: string): TeamCsvRow[] | null => {
     const header = lines[0].toLowerCase().split(',').map(h => h.trim());
     const player1Index = header.indexOf('player1');
     const player2Index = header.indexOf('player2');
+    const pouleIndex = header.indexOf('poule');
     
-    if (player1Index === -1 || player2Index === -1) {
+    if (player1Index === -1 || player2Index === -1 || pouleIndex === -1) {
       return null;
     }
     
@@ -38,16 +40,17 @@ export const parseTeamCsv = (csvContent: string): TeamCsvRow[] | null => {
       const cols = lines[i].split(',').map(col => col.trim());
       
       // Skip if we don't have enough columns
-      if (cols.length <= Math.max(player1Index, player2Index)) {
+      if (cols.length <= Math.max(player1Index, player2Index, pouleIndex)) {
         continue;
       }
       
       const player1Name = cols[player1Index];
       const player2Name = cols[player2Index];
+      const pouleName = cols[pouleIndex];
       
-      // Only add if both player names are present
-      if (player1Name && player2Name) {
-        teams.push({ player1Name, player2Name });
+      // Only add if both player names and poule are present
+      if (player1Name && player2Name && pouleName) {
+        teams.push({ player1Name, player2Name, pouleName });
       }
     }
     
@@ -59,26 +62,51 @@ export const parseTeamCsv = (csvContent: string): TeamCsvRow[] | null => {
 };
 
 /**
- * Convert parsed CSV data to Team objects
- * @param csvTeams - Array of parsed team data
- * @returns Array of Team objects
+ * Convert parsed CSV data to Team objects organized by poule
+ * @param csvTeams - Array of parsed team data with poule name
+ * @param poules - Array of poule data including name, id, and path
+ * @returns Array of { pouleId, teams } objects
  */
-export const convertCsvToTeams = (csvTeams: TeamCsvRow[]): Team[] => {
-  return csvTeams.map(({ player1Name, player2Name }) => {
-    const player1: Player = {
-      id: generateId(),
-      name: player1Name
-    };
-    const player2: Player = {
-      id: generateId(),
-      name: player2Name
-    };
+export const convertCsvWithPoulesToTeams = (
+  csvTeams: TeamCsvRow[], 
+  poules: { id: string; name: string; path: string }[]
+): { pouleId: string, teams: Team[] }[] => {
+  const teamsByPoule: Map<string, Team[]> = new Map();
+  
+  csvTeams.forEach(({ player1Name, player2Name, pouleName }) => {
+    // Find matching poule by name
+    const poule = poules.find(p => p.name === pouleName);
     
-    return {
-      id: generateId(),
-      players: [player1, player2]
-    };
+    if (poule) {
+      const player1: Player = {
+        id: generateId(),
+        name: player1Name
+      };
+      
+      const player2: Player = {
+        id: generateId(),
+        name: player2Name
+      };
+      
+      const newTeam: Team = {
+        id: generateId(),
+        players: [player1, player2]
+      };
+      
+      // Add to the map, create a new array if this is the first team for this poule
+      if (!teamsByPoule.has(poule.id)) {
+        teamsByPoule.set(poule.id, []);
+      }
+      
+      teamsByPoule.get(poule.id)?.push(newTeam);
+    }
   });
+  
+  // Convert map to array of { pouleId, teams } objects
+  return Array.from(teamsByPoule.entries()).map(([pouleId, teams]) => ({
+    pouleId,
+    teams
+  }));
 };
 
 /**
@@ -86,5 +114,5 @@ export const convertCsvToTeams = (csvTeams: TeamCsvRow[]): Team[] => {
  * @returns CSV template string
  */
 export const getTeamCsvTemplate = (): string => {
-  return "player1,player2\nJohn Doe,Jane Smith\nAlex Johnson,Sam Williams";
+  return "player1,player2,poule\nJohn Doe,Jane Smith,Poule A\nAlex Johnson,Sam Williams,Poule B";
 };

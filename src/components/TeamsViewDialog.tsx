@@ -1,111 +1,78 @@
 
 import React from 'react';
-import { Poule, Team } from '@/types/tournament';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Users, Plus } from 'lucide-react';
+import { Poule, Team } from "@/types/tournament";
+import { Edit, Trash2 } from "lucide-react";
 
 interface TeamsViewDialogProps {
-  poule: Poule | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTeam?: (pouleId: string) => void;
-  onEditTeam?: (teamId: string, pouleId: string) => void;
-  onDeleteTeam?: (teamId: string, pouleId: string) => void;
+  poule: Poule | null;
+  onEdit?: (teamId: string) => void;
+  onDelete?: (teamId: string) => void;
 }
 
-const TeamsViewDialog: React.FC<TeamsViewDialogProps> = ({
+const TeamsViewDialog: React.FC<TeamsViewDialogProps> = ({ 
+  open, 
+  onOpenChange, 
   poule,
-  open,
-  onOpenChange,
-  onAddTeam,
-  onEditTeam,
-  onDeleteTeam
+  onEdit,
+  onDelete
 }) => {
   if (!poule) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            <span>Teams in Poule {poule.name}</span>
-          </DialogTitle>
-          <DialogDescription>
-            {poule.teams.length} teams registered for this poule
-          </DialogDescription>
+          <DialogTitle>Teams in {poule.name}</DialogTitle>
         </DialogHeader>
-
-        <div className="mt-4">
+        <div className="max-h-96 overflow-y-auto">
           {poule.teams.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No teams added to this poule yet.
-            </div>
+            <p className="text-center text-muted-foreground p-4">
+              No teams in this poule
+            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Team</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {poule.teams.map((team) => (
-                  <TableRow key={team.id}>
-                    <TableCell>
-                      <div className="font-medium">{team.players[0].name}</div>
-                      <div className="text-sm text-muted-foreground">{team.players[1].name}</div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {onEditTeam && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEditTeam(team.id, poule.id)}
-                          >
-                            Edit
-                          </Button>
-                        )}
-                        {onDeleteTeam && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => onDeleteTeam(team.id, poule.id)}
-                          >
-                            Delete
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="space-y-2">
+              {poule.teams.map((team) => (
+                <div
+                  key={team.id}
+                  className="flex items-center justify-between p-3 bg-muted/40 rounded-md"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{team.players[0].name} & {team.players[1].name}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    {onEdit && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(team.id)}
+                        className="h-8 w-8"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                    )}
+                    
+                    {onDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(team.id)}
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
-
-        {onAddTeam && (
-          <div className="mt-4 flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => onAddTeam(poule.id)}
-              className="gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Team
-            </Button>
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   );

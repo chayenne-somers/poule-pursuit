@@ -3,17 +3,17 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parseTeamCsv, convertCsvToTeams, getTeamCsvTemplate } from "@/utils/csvUtils";
+import { parseTeamCsv, convertCsvWithPoulesToTeams, getTeamCsvTemplate } from "@/utils/csvUtils";
 import { Team } from "@/types/tournament";
 import { FileUp, Download, AlertTriangle, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TeamCsvImportProps {
-  poules: { id: string; name: string; path: string }[];
-  onImportComplete: (pouleId: string, teams: Team[]) => void;
+  onImportComplete: (teamsWithPoules: {pouleId: string, teams: Team[]}[]) => void;
   onCancel?: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  poules: { id: string; name: string; path: string }[];
 }
 
 const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
@@ -21,9 +21,8 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
   onImportComplete,
   onCancel
 }) => {
-  const [selectedPouleId, setSelectedPouleId] = useState<string>("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [previewData, setPreviewData] = useState<{ player1Name: string; player2Name: string }[] | null>(null);
+  const [previewData, setPreviewData] = useState<{ player1Name: string; player2Name: string; pouleName: string }[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -41,8 +40,18 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      const parsedData = parseTeamCsv(content);
-      setPreviewData(parsedData);
+      try {
+        const parsedData = parseTeamCsv(content);
+        setPreviewData(parsedData);
+      } catch (error) {
+        console.error("Error parsing CSV:", error);
+        setPreviewData(null);
+        toast({
+          title: "Error parsing CSV",
+          description: "Please check the file format and try again",
+          variant: "destructive"
+        });
+      }
     };
     reader.readAsText(file);
   };
@@ -62,10 +71,10 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
   };
 
   const handleImport = async () => {
-    if (!csvFile || !selectedPouleId) {
+    if (!csvFile || !poules || poules.length === 0) {
       toast({
         title: "Missing information",
-        description: "Please select a poule and upload a CSV file",
+        description: "Please upload a CSV file",
         variant: "destructive"
       });
       return;
@@ -86,18 +95,28 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
         return;
       }
 
-      const teams = convertCsvToTeams(parsedData);
-      onImportComplete(selectedPouleId, teams);
+      const teamsWithPoules = convertCsvWithPoulesToTeams(parsedData, poules);
+      
+      if (teamsWithPoules.length === 0) {
+        toast({
+          title: "No valid teams found",
+          description: "Please check that poule names in the CSV match existing poules",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      onImportComplete(teamsWithPoules);
       
       toast({
         title: "Teams imported successfully",
-        description: `${teams.length} teams have been added to the selected poule`,
+        description: `${parsedData.length} teams have been imported`,
       });
       
       // Reset state
       setCsvFile(null);
       setPreviewData(null);
-      setSelectedPouleId("");
     } catch (error) {
       toast({
         title: "Import failed",
@@ -109,26 +128,16 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
     setIsLoading(false);
   };
 
+  const getPouleNameFromPath = (pouleName: string): string => {
+    // Find the poule display path
+    const poule = poules.find(p => p.name === pouleName);
+    if (!poule) return pouleName;
+    return `${poule.path} - ${poule.name}`;
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="poule-select">Select Poule</Label>
-          <select 
-            id="poule-select" 
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            value={selectedPouleId}
-            onChange={(e) => setSelectedPouleId(e.target.value)}
-          >
-            <option value="">Choose a poule</option>
-            {poules.map((poule) => (
-              <option key={poule.id} value={poule.id}>
-                {poule.path} - {poule.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="space-y-2">
           <Label htmlFor="csv-file">Upload CSV File</Label>
           <div className="flex items-center gap-2">
@@ -149,7 +158,7 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            The CSV must have columns for player1 and player2
+            The CSV must have columns for player1, player2, and poule
           </p>
         </div>
 
@@ -162,7 +171,7 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
             <div className="max-h-32 overflow-y-auto text-xs">
               {previewData.slice(0, 5).map((team, index) => (
                 <div key={index} className="py-1 border-b border-dashed last:border-0">
-                  {team.player1Name} & {team.player2Name}
+                  {team.player1Name} & {team.player2Name} → {getPouleNameFromPath(team.pouleName)}
                 </div>
               ))}
               {previewData.length > 5 && (
@@ -188,7 +197,7 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
             Cancel
           </Button>
         )}
-        <Button onClick={handleImport} disabled={!csvFile || !selectedPouleId || !previewData || isLoading}>
+        <Button onClick={handleImport} disabled={!csvFile || !previewData || isLoading}>
           {isLoading ? "Importing..." : "Import Teams"}
         </Button>
       </div>
