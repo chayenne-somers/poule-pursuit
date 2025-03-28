@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { parseTeamCsv, convertCsvToTeams, getTeamCsvTemplate } from "@/utils/csvUtils";
 import { Team } from "@/types/tournament";
 import { FileUp, Download, AlertTriangle, CheckCircle } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface TeamCsvImportProps {
   poules: { id: string; name: string; path: string }[];
