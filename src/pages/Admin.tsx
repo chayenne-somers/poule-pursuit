@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -1126,12 +1125,14 @@ const Admin = () => {
             <CardContent>
               {tournament && (
                 <TournamentStructure 
+                  disciplines={tournament.disciplines} // Add this prop explicitly
                   tournament={tournament} 
                   navigationState={navigationState}
                   onNavigationChange={handleNavigationChange}
                   onEditItem={handleEditItem}
                   onDeleteItem={handleDeleteItem}
                   onViewTeams={handleViewTeams}
+                  isAdmin={true}
                 />
               )}
             </CardContent>

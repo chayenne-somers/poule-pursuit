@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils';
 import { getPouleWinner } from '@/utils/tournamentUtils';
 
 interface TournamentStructureProps {
-  disciplines: Discipline[];
-  tournament?: { disciplines: Discipline[] }; // Add this line to accept the tournament prop
+  disciplines: Discipline[]; // This is required
+  tournament?: { disciplines: Discipline[] }; // This is optional
   isAdmin?: boolean;
   navigationState?: NavigationState;
   onNavigationChange?: (newState: NavigationState) => void;
