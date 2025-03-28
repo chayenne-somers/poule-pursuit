@@ -3,39 +3,23 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { parseTeamCsv, convertCsvToTeams, getTeamCsvTemplate } from "@/utils/csvUtils";
-import { Poule, Team } from "@/types/tournament";
-import { generateMatches } from "@/utils/tournamentUtils";
+import { Team } from "@/types/tournament";
 import { FileUp, Download, AlertTriangle, CheckCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface TeamCsvImportProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   poules: { id: string; name: string; path: string }[];
   onImportComplete: (pouleId: string, teams: Team[]) => void;
+  onCancel?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
-  open,
-  onOpenChange,
   poules,
-  onImportComplete
+  onImportComplete,
+  onCancel
 }) => {
   const [selectedPouleId, setSelectedPouleId] = useState<string>("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -114,7 +98,6 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
       setCsvFile(null);
       setPreviewData(null);
       setSelectedPouleId("");
-      onOpenChange(false);
     } catch (error) {
       toast({
         title: "Import failed",
@@ -127,95 +110,89 @@ const TeamCsvImport: React.FC<TeamCsvImportProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Import Teams from CSV</DialogTitle>
-          <DialogDescription>
-            Upload a CSV file with team data to import into a poule.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="poule-select">Select Poule</Label>
-            <Select value={selectedPouleId} onValueChange={setSelectedPouleId}>
-              <SelectTrigger id="poule-select">
-                <SelectValue placeholder="Choose a poule" />
-              </SelectTrigger>
-              <SelectContent>
-                {poules.map((poule) => (
-                  <SelectItem key={poule.id} value={poule.id}>
-                    {poule.path} - {poule.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="csv-file">Upload CSV File</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="csv-file"
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                title="Download Template"
-                onClick={downloadTemplate}
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              The CSV must have columns for player1 and player2
-            </p>
-          </div>
-
-          {previewData && (
-            <div className="space-y-2 border rounded-md p-3">
-              <h4 className="text-sm font-medium flex items-center gap-1">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                Preview ({previewData.length} teams)
-              </h4>
-              <div className="max-h-32 overflow-y-auto text-xs">
-                {previewData.slice(0, 5).map((team, index) => (
-                  <div key={index} className="py-1 border-b border-dashed last:border-0">
-                    {team.player1Name} & {team.player2Name}
-                  </div>
-                ))}
-                {previewData.length > 5 && (
-                  <p className="text-xs text-muted-foreground pt-1">
-                    ...and {previewData.length - 5} more teams
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {csvFile && !previewData && (
-            <div className="text-sm text-amber-600 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Invalid CSV format. Please check the file and try again.
-            </div>
-          )}
+    <div className="space-y-4">
+      <div className="grid gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="poule-select">Select Poule</Label>
+          <select 
+            id="poule-select" 
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            value={selectedPouleId}
+            onChange={(e) => setSelectedPouleId(e.target.value)}
+          >
+            <option value="">Choose a poule</option>
+            {poules.map((poule) => (
+              <option key={poule.id} value={poule.id}>
+                {poule.path} - {poule.name}
+              </option>
+            ))}
+          </select>
         </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+
+        <div className="space-y-2">
+          <Label htmlFor="csv-file">Upload CSV File</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="csv-file"
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              className="flex-1"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              title="Download Template"
+              onClick={downloadTemplate}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The CSV must have columns for player1 and player2
+          </p>
+        </div>
+
+        {previewData && (
+          <div className="space-y-2 border rounded-md p-3">
+            <h4 className="text-sm font-medium flex items-center gap-1">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              Preview ({previewData.length} teams)
+            </h4>
+            <div className="max-h-32 overflow-y-auto text-xs">
+              {previewData.slice(0, 5).map((team, index) => (
+                <div key={index} className="py-1 border-b border-dashed last:border-0">
+                  {team.player1Name} & {team.player2Name}
+                </div>
+              ))}
+              {previewData.length > 5 && (
+                <p className="text-xs text-muted-foreground pt-1">
+                  ...and {previewData.length - 5} more teams
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {csvFile && !previewData && (
+          <div className="text-sm text-amber-600 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Invalid CSV format. Please check the file and try again.
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2">
+        {onCancel && (
+          <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button onClick={handleImport} disabled={!csvFile || !selectedPouleId || !previewData || isLoading}>
-            {isLoading ? "Importing..." : "Import Teams"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        )}
+        <Button onClick={handleImport} disabled={!csvFile || !selectedPouleId || !previewData || isLoading}>
+          {isLoading ? "Importing..." : "Import Teams"}
+        </Button>
+      </div>
+    </div>
   );
 };
 
