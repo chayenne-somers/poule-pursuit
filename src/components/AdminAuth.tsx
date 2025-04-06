@@ -5,7 +5,7 @@ import { checkAdminCredentials, saveAdminCredentials } from '@/utils/tournamentU
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { Lock } from 'lucide-react';
 
 interface AdminAuthProps {
@@ -27,7 +27,7 @@ const AdminAuth = ({ onAuthenticated }: AdminAuthProps) => {
     setTimeout(() => {
       if (checkAdminCredentials(username, password)) {
         // Set session storage to remember admin is logged in
-        localStorage.setItem('adminAuth', 'true');
+        sessionStorage.setItem('isAdminAuthenticated', 'true');
         toast({
           title: "Authentication successful",
           description: "Welcome to the admin panel",
