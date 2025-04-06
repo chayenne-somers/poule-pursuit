@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -109,7 +110,8 @@ const Admin = () => {
       return;
     }
 
-    const newTournament = initializeTournament(tournamentName);
+    // Fixed: Call initializeTournament without arguments as per the function definition
+    const newTournament = initializeTournament();
     setTournament(newTournament);
     saveTournament(newTournament);
     setCreateDialogVisible(false);
@@ -130,17 +132,17 @@ const Admin = () => {
   };
 
   const handleAddItem = (type: 'discipline' | 'level' | 'poule' | 'team', parentId?: string) => {
-		setItemType(type);
+    setItemType(type);
     setItemId(null);
     setItemParentId(parentId || null);
-		setEditDialogVisible(true);
+    setEditDialogVisible(true);
   };
 
   const handleEditItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
-		setItemType(type);
+    setItemType(type);
     setItemId(id);
     setItemParentId(parentId || null);
-		setEditDialogVisible(true);
+    setEditDialogVisible(true);
   };
 
   const handleDeleteItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
@@ -169,10 +171,11 @@ const Admin = () => {
         break;
       case 'poule':
         if (deleteItemParentId) {
+          // Fixed: Correctly reference discipline.levels
           const discipline = updatedTournament.disciplines.find(d => {
-            return discipline.levels.find(l => {
+            return d.levels.find(l => {
               return l.poules.find(p => p.id === deleteItemId);
-            })
+            });
           });
 
           if (discipline) {
@@ -185,10 +188,11 @@ const Admin = () => {
         break;
       case 'team':
         if (deleteItemParentId) {
+          // Fixed: Correctly reference discipline.levels
           const discipline = updatedTournament.disciplines.find(d => {
-            return discipline.levels.find(l => {
+            return d.levels.find(l => {
               return l.poules.find(p => p.id === deleteItemParentId);
-            })
+            });
           });
 
           if (discipline) {
@@ -197,7 +201,7 @@ const Admin = () => {
               const poule = level.poules.find(p => p.id === deleteItemParentId);
               if (poule) {
                 poule.teams = poule.teams.filter(t => t.id !== deleteItemId);
-                poule.matches = generateMatches(poule.teams);
+                poule.matches = generateMatches(poule);
                 calculateStandings(poule);
               }
             }
@@ -258,7 +262,7 @@ const Admin = () => {
     for (let i = 0; i < updatedTournament.disciplines.length; i++) {
       const discipline = updatedTournament.disciplines[i];
       for (let j = 0; j < discipline.levels.length; j++) {
-        const level = updatedTournament.disciplines[j];
+        const level = discipline.levels[j];
         for (let k = 0; k < level.poules.length; k++) {
           const poule = level.poules[k];
           if (poule.id === pouleId) {
@@ -315,7 +319,43 @@ const Admin = () => {
                   <PlusCircle className="h-4 w-4" />
                   Create New Poule
                 </Button>
-                <TeamCsvImport tournament={tournament} setTournament={setTournament} />
+                {/* Fixed: Pass the correct props to TeamCsvImport */}
+                <TeamCsvImport 
+                  poules={tournament?.disciplines.flatMap(d => 
+                    d.levels.flatMap(l => 
+                      l.poules.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        path: `${d.name} - Level ${l.name}`
+                      }))
+                    )
+                  ) || []}
+                  onImportComplete={(teamsWithPoules) => {
+                    if (!tournament) return;
+                    
+                    const updatedTournament = { ...tournament };
+                    
+                    // Process the imported teams
+                    teamsWithPoules.forEach(({ pouleId, teams }) => {
+                      // Find the poule
+                      for (const discipline of updatedTournament.disciplines) {
+                        for (const level of discipline.levels) {
+                          const poule = level.poules.find(p => p.id === pouleId);
+                          if (poule) {
+                            // Add the teams to the poule
+                            poule.teams = [...poule.teams, ...teams];
+                            // Regenerate matches
+                            poule.matches = generateMatches(poule);
+                            return;
+                          }
+                        }
+                      }
+                    });
+                    
+                    setTournament(updatedTournament);
+                    saveTournament(updatedTournament);
+                  }}
+                />
               </div>
               <div className="flex justify-end">
                 <Button onClick={handleSaveTournament} className="flex items-center gap-2">
@@ -346,7 +386,8 @@ const Admin = () => {
               </div>
             </div>
           ) : (
-            <AdminAuth onLogin={() => setIsLoggedIn(true)} />
+            {/* Fixed: Changed onLogin to onAuthenticated */}
+            <AdminAuth onAuthenticated={() => setIsLoggedIn(true)} />
           )}
         </div>
       </div>
