@@ -386,7 +386,6 @@ const Admin = () => {
               </div>
             </div>
           ) : (
-            {/* Fixed: Changed onLogin to onAuthenticated */}
             <AdminAuth onAuthenticated={() => setIsLoggedIn(true)} />
           )}
         </div>
