@@ -64,7 +64,183 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { PlusCircle, Save, Users, X, Trash2, Edit, Upload } from 'lucide-react';
 
-[Previous code continues exactly as before until the handleRemoveAllTeams function, which is added just before the return statement]
+const Admin = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [tournamentName, setTournamentName] = useState('');
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [navigationState, setNavigationState] = useState<NavigationState>({});
+  const [createDialogVisible, setCreateDialogVisible] = useState(false);
+  const [editDialogVisible, setEditDialogVisible] = useState(false);
+	const [itemType, setItemType] = useState<'discipline' | 'level' | 'poule' | 'team'>('discipline');
+  const [itemId, setItemId] = useState<string | null>(null);
+  const [itemParentId, setItemParentId] = useState<string | null>(null);
+  const [deleteAlertDialogVisible, setDeleteAlertDialogVisible] = useState(false);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [deleteItemType, setDeleteItemType] = useState<'discipline' | 'level' | 'poule' | 'team'>('discipline');
+  const [deleteItemParentId, setDeleteItemParentId] = useState<string | null>(null);
+  const [teamsViewDialogOpen, setTeamsViewDialogOpen] = useState(false);
+  const [currentPoule, setCurrentPoule] = useState<Poule | null>(null);
+
+  useEffect(() => {
+    const storedTournament = loadTournament();
+    if (storedTournament) {
+      setTournament(storedTournament);
+    }
+  }, []);
+
+  useEffect(() => {
+    const storedAuth = localStorage.getItem('adminAuth');
+    setIsLoggedIn(!!storedAuth);
+  }, []);
+
+  const handleNavigationChange = (newState: NavigationState) => {
+    setNavigationState(newState);
+  };
+
+  const handleCreateTournament = () => {
+    if (tournamentName.trim() === '') {
+      toast({
+        title: "Error",
+        description: "Tournament name cannot be empty.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newTournament = initializeTournament(tournamentName);
+    setTournament(newTournament);
+    saveTournament(newTournament);
+    setCreateDialogVisible(false);
+    toast({
+      title: "Tournament Created",
+      description: `Tournament "${tournamentName}" has been created.`,
+    });
+  };
+
+  const handleSaveTournament = () => {
+    if (tournament) {
+      saveTournament(tournament);
+      toast({
+        title: "Tournament Saved",
+        description: "Tournament progress has been saved.",
+      });
+    }
+  };
+
+  const handleAddItem = (type: 'discipline' | 'level' | 'poule' | 'team', parentId?: string) => {
+		setItemType(type);
+    setItemId(null);
+    setItemParentId(parentId || null);
+		setEditDialogVisible(true);
+  };
+
+  const handleEditItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
+		setItemType(type);
+    setItemId(id);
+    setItemParentId(parentId || null);
+		setEditDialogVisible(true);
+  };
+
+  const handleDeleteItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
+    setDeleteAlertDialogVisible(true);
+    setDeleteItemType(type);
+    setDeleteItemId(id);
+    setDeleteItemParentId(parentId || null);
+  };
+
+  const confirmDeleteItem = () => {
+    if (!tournament || !deleteItemId || !deleteItemType) return;
+
+    let updatedTournament = { ...tournament };
+
+    switch (deleteItemType) {
+      case 'discipline':
+        updatedTournament.disciplines = updatedTournament.disciplines.filter(d => d.id !== deleteItemId);
+        break;
+      case 'level':
+        if (deleteItemParentId) {
+          const discipline = updatedTournament.disciplines.find(d => d.id === deleteItemParentId);
+          if (discipline) {
+            discipline.levels = discipline.levels.filter(l => l.id !== deleteItemId);
+          }
+        }
+        break;
+      case 'poule':
+        if (deleteItemParentId) {
+          const discipline = updatedTournament.disciplines.find(d => {
+            return discipline.levels.find(l => {
+              return l.poules.find(p => p.id === deleteItemId);
+            })
+          });
+
+          if (discipline) {
+            const level = discipline.levels.find(l => l.poules.find(p => p.id === deleteItemId));
+            if (level) {
+              level.poules = level.poules.filter(p => p.id !== deleteItemId);
+            }
+          }
+        }
+        break;
+      case 'team':
+        if (deleteItemParentId) {
+          const discipline = updatedTournament.disciplines.find(d => {
+            return discipline.levels.find(l => {
+              return l.poules.find(p => p.id === deleteItemParentId);
+            })
+          });
+
+          if (discipline) {
+            const level = discipline.levels.find(l => l.poules.find(p => p.id === deleteItemParentId));
+            if (level) {
+              const poule = level.poules.find(p => p.id === deleteItemParentId);
+              if (poule) {
+                poule.teams = poule.teams.filter(t => t.id !== deleteItemId);
+                poule.matches = generateMatches(poule.teams);
+                calculateStandings(poule);
+              }
+            }
+          }
+        }
+        break;
+    }
+
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
+    setDeleteAlertDialogVisible(false);
+    setDeleteItemType('discipline');
+    setDeleteItemId(null);
+    setDeleteItemParentId(null);
+
+    toast({
+      title: "Item Deleted",
+      description: "The item has been successfully deleted.",
+    });
+  };
+
+  const handleViewTeams = (pouleId: string) => {
+    if (!tournament) return;
+    
+    // Find the poule in the tournament structure
+    let pouleToView: Poule | null = null;
+    
+    for (const discipline of tournament.disciplines) {
+      for (const level of discipline.levels) {
+        const foundPoule = level.poules.find(poule => poule.id === pouleId);
+        if (foundPoule) {
+          pouleToView = foundPoule;
+          break;
+        }
+      }
+      if (pouleToView) break;
+    }
+    
+    if (pouleToView) {
+      setCurrentPoule(pouleToView);
+      setTeamsViewDialogOpen(true);
+    }
+  };
 
   // Add a new function to handle removing all teams from a poule
   const handleRemoveAllTeams = (pouleId: string) => {
@@ -116,7 +292,119 @@ import { PlusCircle, Save, Users, X, Trash2, Edit, Upload } from 'lucide-react';
     }
   };
 
-[Previous return statement and JSX continues exactly as before, but with the TeamsViewDialog component updated to include the new onRemoveAllTeams prop:]
+  return (
+    
+      
+        
+          Admin Panel
+        
+        
+          {isLoggedIn ? (
+            
+              
+                
+                  
+                    Create New Discipline
+                  
+                  
+                    Create New Level
+                  
+                  
+                    Create New Poule
+                  
+                  
+                    Import Teams from CSV
+                  
+                
+                
+                  
+                    Save Tournament
+                  
+                
+              
+              
+                {tournament ? (
+                  <TournamentStructure
+                    disciplines={tournament.disciplines}
+                    tournament={tournament}
+                    isAdmin={true}
+                    navigationState={navigationState}
+                    onNavigationChange={handleNavigationChange}
+                    onEditItem={handleEditItem}
+                    onDeleteItem={handleDeleteItem}
+                    onViewTeams={handleViewTeams}
+                  />
+                ) : (
+                  
+                    No tournament created. Create one to start.
+                  
+                )}
+              
+            
+          ) : (
+            <AdminAuth onLogin={() => setIsLoggedIn(true)} />
+          )}
+        
+      
+
+      
+        
+          
+            Create New Tournament
+          
+          
+            
+              Tournament Name
+              <Input
+                type="text"
+                value={tournamentName}
+                onChange={(e) => setTournamentName(e.target.value)}
+              />
+            
+          
+          
+            
+              Cancel
+              Create
+            
+          
+        
+      
+
+      
+        {editDialogVisible && (
+          
+            
+              Edit Item
+            
+            
+              
+                {itemType}
+                {itemId}
+                {itemParentId}
+              
+            
+          
+        )}
+      
+
+      
+        
+          
+            
+              
+                Are you sure you want to delete this item? This action cannot be undone.
+              
+            
+            
+              
+                Cancel
+                Delete
+              
+            
+          
+        
+      
 
         <TeamsViewDialog
           open={teamsViewDialogOpen}
@@ -126,5 +414,8 @@ import { PlusCircle, Save, Users, X, Trash2, Edit, Upload } from 'lucide-react';
           onDelete={(teamId) => handleDeleteItem('team', teamId, currentPoule?.id)}
           onRemoveAllTeams={handleRemoveAllTeams}
         />
+    
+  );
+};
 
-[Rest of the file continues exactly as before]
+export default Admin;
