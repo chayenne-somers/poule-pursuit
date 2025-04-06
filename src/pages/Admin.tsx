@@ -73,7 +73,7 @@ const Admin = () => {
   const [navigationState, setNavigationState] = useState<NavigationState>({});
   const [createDialogVisible, setCreateDialogVisible] = useState(false);
   const [editDialogVisible, setEditDialogVisible] = useState(false);
-	const [itemType, setItemType] = useState<'discipline' | 'level' | 'poule' | 'team'>('discipline');
+  const [itemType, setItemType] = useState<'discipline' | 'level' | 'poule' | 'team'>('discipline');
   const [itemId, setItemId] = useState<string | null>(null);
   const [itemParentId, setItemParentId] = useState<string | null>(null);
   const [deleteAlertDialogVisible, setDeleteAlertDialogVisible] = useState(false);
@@ -242,7 +242,7 @@ const Admin = () => {
     }
   };
 
-  // Add a new function to handle removing all teams from a poule
+  // Function to handle removing all teams from a poule
   const handleRemoveAllTeams = (pouleId: string) => {
     if (!tournament) return;
     
@@ -258,7 +258,7 @@ const Admin = () => {
     for (let i = 0; i < updatedTournament.disciplines.length; i++) {
       const discipline = updatedTournament.disciplines[i];
       for (let j = 0; j < discipline.levels.length; j++) {
-        const level = discipline.levels[j];
+        const level = updatedTournament.disciplines[j];
         for (let k = 0; k < level.poules.length; k++) {
           const poule = level.poules[k];
           if (poule.id === pouleId) {
@@ -284,7 +284,7 @@ const Admin = () => {
       
       toast({
         title: "All teams removed",
-        description: "All teams and matches have been removed from the poule",
+        description: "All teams and matches have been removed from the poule"
       });
       
       // Close the dialog after removing teams
@@ -293,36 +293,38 @@ const Admin = () => {
   };
 
   return (
-    
-      
+    <div className="container mx-auto py-6">
+      <div className="space-y-6">
+        <header className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Admin Panel</h1>
+        </header>
         
-          Admin Panel
-        
-        
+        <div className="mt-6">
           {isLoggedIn ? (
-            
+            <div className="space-y-6">
+              <div className="flex flex-wrap gap-4">
+                <Button onClick={() => handleAddItem('discipline')} className="flex items-center gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Create New Discipline
+                </Button>
+                <Button onClick={() => handleAddItem('level')} className="flex items-center gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Create New Level
+                </Button>
+                <Button onClick={() => handleAddItem('poule')} className="flex items-center gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Create New Poule
+                </Button>
+                <TeamCsvImport tournament={tournament} setTournament={setTournament} />
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handleSaveTournament} className="flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  Save Tournament
+                </Button>
+              </div>
               
-                
-                  
-                    Create New Discipline
-                  
-                  
-                    Create New Level
-                  
-                  
-                    Create New Poule
-                  
-                  
-                    Import Teams from CSV
-                  
-                
-                
-                  
-                    Save Tournament
-                  
-                
-              
-              
+              <div className="mt-8">
                 {tournament ? (
                   <TournamentStructure
                     disciplines={tournament.disciplines}
@@ -335,86 +337,89 @@ const Admin = () => {
                     onViewTeams={handleViewTeams}
                   />
                 ) : (
-                  
-                    No tournament created. Create one to start.
-                  
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      No tournament created. Create one to start.
+                    </CardContent>
+                  </Card>
                 )}
-              
-            
+              </div>
+            </div>
           ) : (
             <AdminAuth onLogin={() => setIsLoggedIn(true)} />
           )}
-        
-      
+        </div>
+      </div>
 
-      
-        
-          
-            Create New Tournament
-          
-          
-            
-              Tournament Name
+      <Dialog open={createDialogVisible} onOpenChange={setCreateDialogVisible}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Tournament</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="name">Tournament Name</label>
               <Input
                 type="text"
                 value={tournamentName}
                 onChange={(e) => setTournamentName(e.target.value)}
               />
-            
-          
-          
-            
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogVisible(false)}>
               Cancel
-              Create
-            
-          
-        
-      
+            </Button>
+            <Button onClick={handleCreateTournament}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      
+      <Dialog open={editDialogVisible} onOpenChange={setEditDialogVisible}>
         {editDialogVisible && (
-          
-            
-              Edit Item
-            
-            
-              
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Item</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div>
                 {itemType}
                 {itemId}
                 {itemParentId}
-              
-            
-          
+              </div>
+            </div>
+          </DialogContent>
         )}
-      
+      </Dialog>
 
-      
-        
-          
-            
-              
-                Are you sure you want to delete this item? This action cannot be undone.
-              
-            
-            
-              
-                Cancel
-                Delete
-              
-            
-          
-        
-      
+      <AlertDialog open={deleteAlertDialogVisible} onOpenChange={setDeleteAlertDialogVisible}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this item? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-        <TeamsViewDialog
-          open={teamsViewDialogOpen}
-          onOpenChange={setTeamsViewDialogOpen}
-          poule={currentPoule}
-          onEdit={(teamId) => handleEditItem('team', teamId, currentPoule?.id)}
-          onDelete={(teamId) => handleDeleteItem('team', teamId, currentPoule?.id)}
-          onRemoveAllTeams={handleRemoveAllTeams}
-        />
-    
+      <TeamsViewDialog
+        open={teamsViewDialogOpen}
+        onOpenChange={setTeamsViewDialogOpen}
+        poule={currentPoule}
+        onEdit={(teamId) => handleEditItem('team', teamId, currentPoule?.id)}
+        onDelete={(teamId) => handleDeleteItem('team', teamId, currentPoule?.id)}
+        onRemoveAllTeams={handleRemoveAllTeams}
+      />
+    </div>
   );
 };
 
