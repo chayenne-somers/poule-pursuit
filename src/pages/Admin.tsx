@@ -321,7 +321,7 @@ const Admin = () => {
                   <PlusCircle className="h-4 w-4" />
                   Create New Poule
                 </Button>
-                {/* Fixed: Pass the correct props to TeamCsvImport */}
+                {/* Fix: Properly access poules through discipline.levels */}
                 <TeamCsvImport 
                   poules={tournament?.disciplines.flatMap(d => 
                     d.levels.flatMap(l => 
