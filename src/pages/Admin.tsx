@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -264,7 +265,7 @@ const Admin = () => {
     for (let i = 0; i < updatedTournament.disciplines.length; i++) {
       const discipline = updatedTournament.disciplines[i];
       for (let j = 0; j < discipline.levels.length; j++) {
-        const level = updatedTournament.disciplines[j];
+        const level = discipline.levels[j];
         for (let k = 0; k < level.poules.length; k++) {
           const poule = level.poules[k];
           if (poule.id === pouleId) {
