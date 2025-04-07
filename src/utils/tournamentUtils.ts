@@ -1,5 +1,4 @@
-
-import { Match, Poule, Team, SetScore } from "../types/tournament";
+import { Match, Poule, Team, SetScore, Tournament } from "../types/tournament";
 
 // Generate a unique ID
 export const generateId = (): string => {
@@ -221,7 +220,7 @@ export const saveTournament = (tournament: any): void => {
 };
 
 // Ensure safe tournament loading with proper defaults
-export const loadTournament = (): any => {
+export const loadTournament = (): Tournament | null => {
   try {
     const data = localStorage.getItem('tournament');
     if (!data) return null;
@@ -271,7 +270,7 @@ export const loadTournament = (): any => {
     return parsedData;
   } catch (error) {
     console.error("Error loading tournament data:", error);
-    return { disciplines: [] };
+    return null;
   }
 };
 
@@ -290,10 +289,7 @@ export const checkAdminCredentials = (username: string, password: string): boole
 };
 
 // Initialize sample tournament data
-export const initializeTournament = () => {
-  // Check if tournament data already exists
-  if (loadTournament()) return;
-
+export const initializeTournament = (): Tournament => {
   const disciplines = [
     { id: "d1", name: "Dames dubbel", levels: [] },
     { id: "d2", name: "Heren dubbel", levels: [] },
@@ -311,12 +307,15 @@ export const initializeTournament = () => {
     ];
   });
 
-  saveTournament({ disciplines });
-
   // Initialize admin credentials if they don't exist
   if (!localStorage.getItem('adminCredentials')) {
     saveAdminCredentials('admin', 'admin123');
   }
+  
+  // Create tournament object
+  const tournament: Tournament = { disciplines };
+  
+  return tournament;
 };
 
 // Get the number of sets won by each team in a match

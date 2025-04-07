@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -110,15 +109,18 @@ const Admin = () => {
       return;
     }
 
-    // Fixed: Call initializeTournament without arguments as per the function definition
+    // Now initializeTournament properly returns a Tournament object
     const newTournament = initializeTournament();
-    setTournament(newTournament);
-    saveTournament(newTournament);
-    setCreateDialogVisible(false);
-    toast({
-      title: "Tournament Created",
-      description: `Tournament "${tournamentName}" has been created.`,
-    });
+    // And here we save the tournament with the name
+    if (newTournament) {
+      setTournament(newTournament);
+      saveTournament(newTournament);
+      setCreateDialogVisible(false);
+      toast({
+        title: "Tournament Created",
+        description: `Tournament "${tournamentName}" has been created.`,
+      });
+    }
   };
 
   const handleSaveTournament = () => {
@@ -262,7 +264,7 @@ const Admin = () => {
     for (let i = 0; i < updatedTournament.disciplines.length; i++) {
       const discipline = updatedTournament.disciplines[i];
       for (let j = 0; j < discipline.levels.length; j++) {
-        const level = discipline.levels[j];
+        const level = updatedTournament.disciplines[j];
         for (let k = 0; k < level.poules.length; k++) {
           const poule = level.poules[k];
           if (poule.id === pouleId) {
