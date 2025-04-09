@@ -24,6 +24,7 @@ import TeamStandings from '@/components/TeamStandings';
 import NavBar from '@/components/NavBar';
 import TeamsViewDialog from '@/components/TeamsViewDialog';
 import TeamCsvImport from '@/components/TeamCsvImport';
+import AdminForm from '@/components/AdminForm';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,13 @@ const Admin = () => {
   const [deleteItemParentId, setDeleteItemParentId] = useState<string | null>(null);
   const [teamsViewDialogOpen, setTeamsViewDialogOpen] = useState(false);
   const [currentPoule, setCurrentPoule] = useState<Poule | null>(null);
+  
+  // New state variables for form inputs
+  const [formName, setFormName] = useState('');
+  const [selectedDisciplineForForm, setSelectedDisciplineForForm] = useState('');
+  const [selectedLevelForForm, setSelectedLevelForForm] = useState('');
+  const [player1NameForm, setPlayer1NameForm] = useState('');
+  const [player2NameForm, setPlayer2NameForm] = useState('');
 
   useEffect(() => {
     const storedTournament = loadTournament();
@@ -95,6 +103,69 @@ const Admin = () => {
     const storedAuth = localStorage.getItem('adminAuth');
     setIsLoggedIn(!!storedAuth);
   }, []);
+
+  // Reset form state when dialog opens/closes
+  useEffect(() => {
+    if (editDialogVisible) {
+      // Reset form fields
+      setFormName('');
+      setSelectedDisciplineForForm('');
+      setSelectedLevelForForm('');
+      setPlayer1NameForm('');
+      setPlayer2NameForm('');
+      
+      // Pre-fill form for edit mode
+      if (itemId && tournament) {
+        if (itemType === 'discipline') {
+          const discipline = tournament.disciplines.find(d => d.id === itemId);
+          if (discipline) setFormName(discipline.name);
+        } else if (itemType === 'level' && itemParentId) {
+          const discipline = tournament.disciplines.find(d => d.id === itemParentId);
+          if (discipline) {
+            const level = discipline.levels.find(l => l.id === itemId);
+            if (level) {
+              setFormName(level.name);
+              setSelectedDisciplineForForm(itemParentId);
+            }
+          }
+        } else if (itemType === 'poule' && itemParentId) {
+          // Find the poule through levels
+          for (const discipline of tournament.disciplines) {
+            for (const level of discipline.levels) {
+              if (level.id === itemParentId) {
+                const poule = level.poules.find(p => p.id === itemId);
+                if (poule) {
+                  setFormName(poule.name);
+                  setSelectedDisciplineForForm(discipline.id);
+                  setSelectedLevelForForm(level.id);
+                  break;
+                }
+              }
+            }
+          }
+        } else if (itemType === 'team' && itemParentId) {
+          // Find the team through poules
+          for (const discipline of tournament.disciplines) {
+            for (const level of discipline.levels) {
+              for (const poule of level.poules) {
+                if (poule.id === itemParentId) {
+                  const team = poule.teams.find(t => t.id === itemId);
+                  if (team && team.players.length >= 2) {
+                    setPlayer1NameForm(team.players[0].name);
+                    setPlayer2NameForm(team.players[1].name);
+                    setSelectedDisciplineForForm(discipline.id);
+                    setSelectedLevelForForm(level.id);
+                    setFormName(poule.id); // Using formName to store poule id for teams
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, [editDialogVisible, itemId, itemType, itemParentId, tournament]);
 
   const handleNavigationChange = (newState: NavigationState) => {
     setNavigationState(newState);
@@ -153,6 +224,182 @@ const Admin = () => {
     setDeleteItemType(type);
     setDeleteItemId(id);
     setDeleteItemParentId(parentId || null);
+  };
+
+  const handleSaveForm = () => {
+    if (!tournament) return;
+    
+    const updatedTournament = { ...tournament };
+    
+    // Create or edit based on itemType
+    if (itemType === 'discipline') {
+      if (!formName.trim()) {
+        toast({
+          title: "Error",
+          description: "Please enter a discipline name",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (itemId) {
+        // Edit existing discipline
+        const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === itemId);
+        if (disciplineIndex !== -1) {
+          updatedTournament.disciplines[disciplineIndex].name = formName.trim();
+        }
+      } else {
+        // Create new discipline
+        const newDiscipline: Discipline = {
+          id: generateId(),
+          name: formName.trim(),
+          levels: [
+            { id: generateId(), name: "1", poules: [] },
+            { id: generateId(), name: "2", poules: [] },
+            { id: generateId(), name: "3", poules: [] },
+            { id: generateId(), name: "4", poules: [] },
+            { id: generateId(), name: "4+", poules: [] }
+          ]
+        };
+        updatedTournament.disciplines.push(newDiscipline);
+      }
+    } 
+    else if (itemType === 'level') {
+      if (!formName.trim() || !selectedDisciplineForForm) {
+        toast({
+          title: "Error",
+          description: "Please enter a level name and select a discipline",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === selectedDisciplineForForm);
+      if (disciplineIndex === -1) return;
+      
+      if (itemId) {
+        // Edit existing level
+        const levelIndex = updatedTournament.disciplines[disciplineIndex].levels.findIndex(l => l.id === itemId);
+        if (levelIndex !== -1) {
+          updatedTournament.disciplines[disciplineIndex].levels[levelIndex].name = formName.trim();
+        }
+      } else {
+        // Create new level
+        const newLevel: Level = {
+          id: generateId(),
+          name: formName.trim(),
+          poules: []
+        };
+        updatedTournament.disciplines[disciplineIndex].levels.push(newLevel);
+      }
+    } 
+    else if (itemType === 'poule') {
+      if (!formName.trim() || !selectedDisciplineForForm || !selectedLevelForForm) {
+        toast({
+          title: "Error",
+          description: "Please fill in all fields",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const disciplineIndex = updatedTournament.disciplines.findIndex(d => d.id === selectedDisciplineForForm);
+      if (disciplineIndex === -1) return;
+      
+      const levelIndex = updatedTournament.disciplines[disciplineIndex].levels.findIndex(l => l.id === selectedLevelForForm);
+      if (levelIndex === -1) return;
+      
+      if (itemId) {
+        // Edit existing poule
+        const pouleIndex = updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules.findIndex(p => p.id === itemId);
+        if (pouleIndex !== -1) {
+          updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].name = formName.trim();
+        }
+      } else {
+        // Create new poule
+        const newPoule: Poule = {
+          id: generateId(),
+          name: formName.trim(),
+          teams: [],
+          matches: []
+        };
+        updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules.push(newPoule);
+      }
+    }
+    else if (itemType === 'team') {
+      if (!player1NameForm.trim() || !player2NameForm.trim() || !formName) {
+        toast({
+          title: "Error",
+          description: "Please fill in all fields",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Find the poule with the given ID
+      let foundPoule: Poule | null = null;
+      let disciplineIndex = -1;
+      let levelIndex = -1;
+      let pouleIndex = -1;
+      
+      for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+        for (let j = 0; j < updatedTournament.disciplines[i].levels.length; j++) {
+          for (let k = 0; k < updatedTournament.disciplines[i].levels[j].poules.length; k++) {
+            if (updatedTournament.disciplines[i].levels[j].poules[k].id === formName) {
+              foundPoule = updatedTournament.disciplines[i].levels[j].poules[k];
+              disciplineIndex = i;
+              levelIndex = j;
+              pouleIndex = k;
+              break;
+            }
+          }
+          if (foundPoule) break;
+        }
+        if (foundPoule) break;
+      }
+      
+      if (!foundPoule) return;
+      
+      const player1: Player = {
+        id: generateId(),
+        name: player1NameForm.trim()
+      };
+      
+      const player2: Player = {
+        id: generateId(),
+        name: player2NameForm.trim()
+      };
+      
+      if (itemId) {
+        // Edit existing team
+        const teamIndex = foundPoule.teams.findIndex(t => t.id === itemId);
+        if (teamIndex !== -1) {
+          foundPoule.teams[teamIndex].players = [player1, player2];
+          // Regenerate matches when team changes
+          foundPoule.matches = generateMatches(foundPoule);
+        }
+      } else {
+        // Create new team
+        const newTeam: Team = {
+          id: generateId(),
+          players: [player1, player2]
+        };
+        
+        updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].teams.push(newTeam);
+        // Regenerate matches when team is added
+        updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex].matches = 
+          generateMatches(updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex]);
+      }
+    }
+    
+    setTournament(updatedTournament);
+    saveTournament(updatedTournament);
+    setEditDialogVisible(false);
+    
+    toast({
+      title: "Success",
+      description: `${itemId ? "Updated" : "Created"} ${itemType} successfully.`,
+    });
   };
 
   const confirmDeleteItem = () => {
@@ -299,6 +546,15 @@ const Admin = () => {
     }
   };
 
+  const handleRefreshData = () => {
+    // This is a simple method to trigger reloading data
+    // It's used by the AdminForm component to refresh the main view
+    const storedTournament = loadTournament();
+    if (storedTournament) {
+      setTournament(storedTournament);
+    }
+  };
+
   return (
     <div className="container mx-auto py-6">
       <div className="space-y-6">
@@ -309,7 +565,7 @@ const Admin = () => {
         <div className="mt-6">
           {isLoggedIn ? (
             <div className="space-y-6">
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-4 mb-8">
                 <Button onClick={() => handleAddItem('discipline')} className="flex items-center gap-2">
                   <PlusCircle className="h-4 w-4" />
                   Create New Discipline
@@ -359,12 +615,16 @@ const Admin = () => {
                     saveTournament(updatedTournament);
                   }}
                 />
+                <div className="ml-auto">
+                  <Button onClick={handleSaveTournament} className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    Save Tournament
+                  </Button>
+                </div>
               </div>
-              <div className="flex justify-end">
-                <Button onClick={handleSaveTournament} className="flex items-center gap-2">
-                  <Save className="h-4 w-4" />
-                  Save Tournament
-                </Button>
+              
+              <div className="mt-8">
+                <AdminForm onDataChange={handleRefreshData} />
               </div>
               
               <div className="mt-8">
@@ -398,6 +658,9 @@ const Admin = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Tournament</DialogTitle>
+            <DialogDescription>
+              Enter a name for your new tournament.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -419,20 +682,163 @@ const Admin = () => {
       </Dialog>
 
       <Dialog open={editDialogVisible} onOpenChange={setEditDialogVisible}>
-        {editDialogVisible && (
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Item</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div>
-                {itemType}
-                {itemId}
-                {itemParentId}
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{itemId ? "Edit" : "Create"} {itemType.charAt(0).toUpperCase() + itemType.slice(1)}</DialogTitle>
+            <DialogDescription>
+              Fill in the details below to {itemId ? "update" : "create"} a {itemType}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {itemType === 'discipline' && (
+              <div className="grid gap-2">
+                <label htmlFor="name">Discipline Name</label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="Enter discipline name"
+                />
               </div>
-            </div>
-          </DialogContent>
-        )}
+            )}
+
+            {itemType === 'level' && (
+              <>
+                <div className="grid gap-2">
+                  <label htmlFor="discipline">Discipline</label>
+                  <Select value={selectedDisciplineForForm} onValueChange={setSelectedDisciplineForForm}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Discipline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tournament?.disciplines.map((discipline) => (
+                        <SelectItem key={discipline.id} value={discipline.id}>
+                          {discipline.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="name">Level Name</label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Enter level name"
+                  />
+                </div>
+              </>
+            )}
+
+            {itemType === 'poule' && (
+              <>
+                <div className="grid gap-2">
+                  <label htmlFor="discipline">Discipline</label>
+                  <Select value={selectedDisciplineForForm} onValueChange={setSelectedDisciplineForForm}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Discipline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tournament?.disciplines.map((discipline) => (
+                        <SelectItem key={discipline.id} value={discipline.id}>
+                          {discipline.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="level">Level</label>
+                  <Select 
+                    value={selectedLevelForForm} 
+                    onValueChange={setSelectedLevelForForm}
+                    disabled={!selectedDisciplineForForm}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedDisciplineForForm && tournament?.disciplines
+                        .find(d => d.id === selectedDisciplineForForm)?.levels
+                        .map((level) => (
+                          <SelectItem key={level.id} value={level.id}>
+                            Level {level.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="name">Poule Name</label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Enter poule name"
+                  />
+                </div>
+              </>
+            )}
+
+            {itemType === 'team' && (
+              <>
+                <div className="grid gap-2">
+                  <label htmlFor="poule">Poule</label>
+                  <Select value={formName} onValueChange={setFormName}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Poule" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tournament?.disciplines.flatMap(d => 
+                        d.levels.flatMap(l => 
+                          l.poules.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {d.name} - Level {l.name} - {p.name}
+                            </SelectItem>
+                          ))
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="player1">Player 1 Name</label>
+                  <Input
+                    id="player1"
+                    type="text"
+                    value={player1NameForm}
+                    onChange={(e) => setPlayer1NameForm(e.target.value)}
+                    placeholder="Enter player 1 name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="player2">Player 2 Name</label>
+                  <Input
+                    id="player2"
+                    type="text"
+                    value={player2NameForm}
+                    onChange={(e) => setPlayer2NameForm(e.target.value)}
+                    placeholder="Enter player 2 name"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogVisible(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveForm}>
+              {itemId ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       <AlertDialog open={deleteAlertDialogVisible} onOpenChange={setDeleteAlertDialogVisible}>
