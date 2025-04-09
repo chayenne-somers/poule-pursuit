@@ -1,4 +1,6 @@
 import { Match, Poule, Team, SetScore, Tournament } from "../types/tournament";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 // Generate a unique ID
 export const generateId = (): string => {
@@ -214,37 +216,140 @@ export const isMatchComplete = (match: Match): boolean => {
   return setsWonA >= 2 || setsWonB >= 2;
 };
 
-// Local storage helpers
-export const saveTournament = (tournament: any): void => {
-  localStorage.setItem('tournament', JSON.stringify(tournament));
+// Save tournament data to Supabase
+export const saveTournament = async (tournament: any): Promise<void> => {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    
+    if (!session.session) {
+      // Fall back to localStorage if not authenticated
+      localStorage.setItem('tournament', JSON.stringify(tournament));
+      return;
+    }
+    
+    const user_id = session.session.user.id;
+    
+    // Check if a tournament record already exists for this user
+    const { data: existingTournament } = await supabase
+      .from('tournaments')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+    
+    if (existingTournament) {
+      // Update existing tournament
+      const { error } = await supabase
+        .from('tournaments')
+        .update({ 
+          data: tournament,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingTournament.id);
+      
+      if (error) throw error;
+    } else {
+      // Create new tournament
+      const { error } = await supabase
+        .from('tournaments')
+        .insert({ 
+          name: 'My Tournament',
+          user_id,
+          data: tournament
+        });
+      
+      if (error) throw error;
+    }
+  } catch (error: any) {
+    console.error("Error saving tournament data:", error);
+    // Fall back to localStorage on error
+    localStorage.setItem('tournament', JSON.stringify(tournament));
+    toast({
+      title: "Error saving data",
+      description: "Your data has been saved locally but not to the cloud.",
+      variant: "destructive"
+    });
+  }
+};
+
+// Load tournament data from Supabase
+export const loadTournament = async (): Promise<Tournament | null> => {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    
+    if (session.session) {
+      const user_id = session.session.user.id;
+      
+      const { data, error } = await supabase
+        .from('tournaments')
+        .select('data')
+        .eq('user_id', user_id)
+        .single();
+      
+      if (error) {
+        // If no tournament found in database, try localStorage
+        if (error.code === 'PGRST116') {
+          const localData = localStorage.getItem('tournament');
+          if (localData) {
+            const parsedData = JSON.parse(localData);
+            return ensureTournamentStructure(parsedData);
+          }
+          return null;
+        }
+        throw error;
+      }
+      
+      if (data) {
+        return ensureTournamentStructure(data.data);
+      }
+    } else {
+      // Not authenticated, fall back to localStorage
+      const localData = localStorage.getItem('tournament');
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        return ensureTournamentStructure(parsedData);
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error loading tournament data:", error);
+    
+    // Fall back to localStorage on error
+    try {
+      const localData = localStorage.getItem('tournament');
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        return ensureTournamentStructure(parsedData);
+      }
+    } catch (localError) {
+      console.error("Error loading from localStorage:", localError);
+    }
+    
+    return null;
+  }
 };
 
 // Ensure safe tournament loading with proper defaults
-export const loadTournament = (): Tournament | null => {
-  try {
-    const data = localStorage.getItem('tournament');
-    if (!data) return null;
-    
-    const parsedData = JSON.parse(data);
-    
-    // Ensure disciplines exists
-    if (!parsedData.disciplines) {
-      parsedData.disciplines = [];
+const ensureTournamentStructure = (parsedData: any): Tournament => {
+  // Ensure disciplines exists
+  if (!parsedData.disciplines) {
+    parsedData.disciplines = [];
+  }
+  
+  // Ensure each discipline has a levels array
+  parsedData.disciplines.forEach((discipline: any) => {
+    if (!discipline.levels) {
+      discipline.levels = [];
     }
     
-    // Ensure each discipline has a levels array
-    parsedData.disciplines.forEach((discipline: any) => {
-      if (!discipline.levels) {
-        discipline.levels = [];
+    // Ensure each level has a poules array
+    discipline.levels.forEach((level: any) => {
+      if (!level.poules) {
+        level.poules = [];
       }
       
-      // Ensure each level has a poules array
+      // Ensure each poule has teams and matches arrays
       discipline.levels.forEach((level: any) => {
-        if (!level.poules) {
-          level.poules = [];
-        }
-        
-        // Ensure each poule has teams and matches arrays
         level.poules.forEach((poule: any) => {
           if (!poule.teams) {
             poule.teams = [];
@@ -266,12 +371,9 @@ export const loadTournament = (): Tournament | null => {
         });
       });
     });
-    
-    return parsedData;
-  } catch (error) {
-    console.error("Error loading tournament data:", error);
-    return null;
-  }
+  });
+  
+  return parsedData;
 };
 
 export const saveAdminCredentials = (username: string, password: string): void => {

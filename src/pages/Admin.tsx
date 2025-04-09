@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -25,6 +24,7 @@ import NavBar from '@/components/NavBar';
 import TeamsViewDialog from '@/components/TeamsViewDialog';
 import TeamCsvImport from '@/components/TeamCsvImport';
 import AdminForm from '@/components/AdminForm';
+import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,12 +92,20 @@ const Admin = () => {
   const [player1NameForm, setPlayer1NameForm] = useState('');
   const [player2NameForm, setPlayer2NameForm] = useState('');
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    const storedTournament = loadTournament();
-    if (storedTournament) {
-      setTournament(storedTournament);
+    const fetchTournament = async () => {
+      const storedTournament = await loadTournament();
+      if (storedTournament) {
+        setTournament(storedTournament);
+      }
+    };
+    
+    if (user) {
+      fetchTournament();
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const storedAuth = localStorage.getItem('adminAuth');
@@ -171,7 +179,7 @@ const Admin = () => {
     setNavigationState(newState);
   };
 
-  const handleCreateTournament = () => {
+  const handleCreateTournament = async () => {
     if (tournamentName.trim() === '') {
       toast({
         title: "Error",
@@ -186,7 +194,7 @@ const Admin = () => {
     // And here we save the tournament with the name
     if (newTournament) {
       setTournament(newTournament);
-      saveTournament(newTournament);
+      await saveTournament(newTournament);
       setCreateDialogVisible(false);
       toast({
         title: "Tournament Created",
@@ -195,9 +203,9 @@ const Admin = () => {
     }
   };
 
-  const handleSaveTournament = () => {
+  const handleSaveTournament = async () => {
     if (tournament) {
-      saveTournament(tournament);
+      await saveTournament(tournament);
       toast({
         title: "Tournament Saved",
         description: "Tournament progress has been saved.",
@@ -226,7 +234,7 @@ const Admin = () => {
     setDeleteItemParentId(parentId || null);
   };
 
-  const handleSaveForm = () => {
+  const handleSaveForm = async () => {
     if (!tournament) return;
     
     const updatedTournament = { ...tournament };
@@ -393,7 +401,7 @@ const Admin = () => {
     }
     
     setTournament(updatedTournament);
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     setEditDialogVisible(false);
     
     toast({
@@ -402,7 +410,7 @@ const Admin = () => {
     });
   };
 
-  const confirmDeleteItem = () => {
+  const confirmDeleteItem = async () => {
     if (!tournament || !deleteItemId || !deleteItemType) return;
 
     let updatedTournament = { ...tournament };
@@ -461,7 +469,7 @@ const Admin = () => {
     }
 
     setTournament(updatedTournament);
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     setDeleteAlertDialogVisible(false);
     setDeleteItemType('discipline');
     setDeleteItemId(null);

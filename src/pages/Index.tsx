@@ -1,32 +1,49 @@
 
 import { useEffect, useState } from 'react';
 import { Tournament } from '@/types/tournament';
-import { loadTournament, initializeTournament } from '@/utils/tournamentUtils';
+import { loadTournament, initializeTournament, saveTournament } from '@/utils/tournamentUtils';
 import TournamentStructure from '@/components/TournamentStructure';
 import NavBar from '@/components/NavBar';
+import { useAuth } from '@/hooks/use-auth';
 
 const Index = () => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Initialize tournament data if it doesn't exist
-    initializeTournament();
+    const fetchTournament = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Initialize tournament data if it doesn't exist
+        const newTournament = initializeTournament();
+        
+        // Load tournament data
+        const data = await loadTournament();
+        
+        // Ensure we have a valid tournament structure
+        if (data && data.disciplines) {
+          setTournament(data);
+        } else {
+          // If we don't have valid data, save and use the initialized tournament
+          await saveTournament(newTournament);
+          setTournament(newTournament);
+        }
+      } catch (error) {
+        console.error("Error loading tournament:", error);
+        // Fallback to initialized tournament
+        const newTournament = initializeTournament();
+        setTournament(newTournament);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    // Load tournament data
-    const data = loadTournament();
-    
-    // Ensure we have a valid tournament structure
-    if (data && data.disciplines) {
-      setTournament(data);
-    } else {
-      // If we don't have valid data, reinitialize
-      initializeTournament();
-      setTournament(loadTournament());
+    if (user) {
+      fetchTournament();
     }
-    
-    setIsLoading(false);
-  }, []);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">
