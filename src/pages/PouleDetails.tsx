@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Match, 
   Poule, 
@@ -18,6 +18,7 @@ import TeamStandings from '@/components/TeamStandings';
 import PouleWinnerCard from '@/components/PouleWinnerCard';
 import MatchCard from '@/components/MatchCard';
 import NavBar from '@/components/NavBar';
+import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -36,6 +37,8 @@ const PouleDetails = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Load tournament data and check if user is admin
   useEffect(() => {
@@ -241,8 +244,12 @@ const PouleDetails = () => {
             <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <Link to="/" className="hover:underline">Home</Link>
-                  <ArrowRight className="h-3 w-3" />
+                  {user && (
+                    <>
+                      <Link to="/" className="hover:underline">Home</Link>
+                      <ArrowRight className="h-3 w-3" />
+                    </>
+                  )}
                   <span>{breadcrumb.discipline}</span>
                   <ArrowRight className="h-3 w-3" />
                   <span>Level {breadcrumb.level}</span>
@@ -254,19 +261,21 @@ const PouleDetails = () => {
               </div>
               
               <div className="flex gap-3">
-                <Button variant="outline" asChild>
-                  <Link to="/">
-                    <ChevronLeft className="h-4 w-4 mr-2" />
-                    Back to Tournament
-                  </Link>
-                </Button>
-                
-                {isAdmin && (
-                  <Button onClick={handleSaveScores}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save All Scores
+                {/* Only show Back to Tournament button for authenticated users */}
+                {user && (
+                  <Button variant="outline" asChild>
+                    <Link to="/">
+                      <ChevronLeft className="h-4 w-4 mr-2" />
+                      Back to Tournament
+                    </Link>
                   </Button>
                 )}
+                
+                {/* Always show Save All Scores button for admins or regular users */}
+                <Button onClick={handleSaveScores}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save All Scores
+                </Button>
               </div>
             </div>
             
@@ -287,7 +296,7 @@ const PouleDetails = () => {
                   key={match.id}
                   match={match}
                   matchIndex={matchIndex}
-                  isAdmin={isAdmin}
+                  isAdmin={true} // Allow all users to update scores
                   onScoreChange={handleScoreChange}
                   onSaveMatch={handleSaveMatch}
                 />
@@ -299,12 +308,14 @@ const PouleDetails = () => {
             <div className="text-center">
               <h2 className="text-xl font-medium mb-2">Poule not found</h2>
               <p className="text-muted-foreground mb-4">The poule you're looking for doesn't exist or has been removed.</p>
-              <Button variant="outline" asChild>
-                <Link to="/">
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Back to Tournament
-                </Link>
-              </Button>
+              {user && (
+                <Button variant="outline" asChild>
+                  <Link to="/">
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Back to Tournament
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         )}

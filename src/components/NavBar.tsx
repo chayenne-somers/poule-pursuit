@@ -1,9 +1,14 @@
 
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import AuthNavBar from './AuthNavBar';
+import { useAuth } from '@/hooks/use-auth';
 
 const NavBar = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+  const isPouleRoute = location.pathname.startsWith('/poule/');
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
       <div className="container mx-auto px-4 flex h-16 items-center">
@@ -14,12 +19,21 @@ const NavBar = () => {
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
-            <Button variant="ghost" asChild>
-              <Link to="/">Home</Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link to="/admin">Admin</Link>
-            </Button>
+            {/* Only show Home button for authenticated users */}
+            {user && (
+              <Button variant="ghost" asChild>
+                <Link to="/">Home</Link>
+              </Button>
+            )}
+            
+            {/* Only show Admin button for authenticated users */}
+            {user && (
+              <Button variant="ghost" asChild>
+                <Link to="/admin">Admin</Link>
+              </Button>
+            )}
+            
+            {/* Always show Auth section */}
             <AuthNavBar />
           </nav>
         </div>

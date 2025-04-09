@@ -42,6 +42,12 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     );
   }
 
+  // Allow access to poule pages without authentication
+  if (location.pathname.startsWith('/poule/')) {
+    return children ? <>{children}</> : <Outlet />;
+  }
+
+  // Require authentication for all other routes
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
