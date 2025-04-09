@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
@@ -21,19 +21,22 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   // Check if user is already logged in
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session) {
-      navigate('/');
-    }
-  });
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/');
+      }
+    });
+  }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Get the current URL to use as redirect URL
-      const currentUrl = window.location.origin;
+      // Get the current URL for the redirect
+      const currentOrigin = window.location.origin;
+      const redirectTo = `${currentOrigin}/auth/callback`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -43,7 +46,7 @@ const Auth = () => {
             username,
             full_name: fullName
           },
-          emailRedirectTo: `${currentUrl}/auth/callback` // Use dynamic redirect
+          emailRedirectTo: redirectTo
         }
       });
 
