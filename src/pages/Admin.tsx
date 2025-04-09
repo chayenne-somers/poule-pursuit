@@ -72,6 +72,7 @@ const Admin = () => {
   const [tournamentName, setTournamentName] = useState('');
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [navigationState, setNavigationState] = useState<NavigationState>({});
   const [createDialogVisible, setCreateDialogVisible] = useState(false);
   const [editDialogVisible, setEditDialogVisible] = useState(false);
@@ -96,16 +97,26 @@ const Admin = () => {
 
   useEffect(() => {
     const fetchTournament = async () => {
-      const storedTournament = await loadTournament();
-      if (storedTournament) {
-        setTournament(storedTournament);
+      setLoading(true);
+      try {
+        const data = await loadTournament();
+        setTournament(data);
+      } catch (error) {
+        console.error("Error loading tournament data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load tournament data",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
       }
     };
     
     if (user) {
       fetchTournament();
     }
-  }, [user]);
+  }, [user, toast]);
 
   useEffect(() => {
     const storedAuth = localStorage.getItem('adminAuth');
@@ -189,27 +200,45 @@ const Admin = () => {
       return;
     }
 
-    // Now initializeTournament properly returns a Tournament object
-    const newTournament = initializeTournament();
-    // And here we save the tournament with the name
-    if (newTournament) {
-      setTournament(newTournament);
-      await saveTournament(newTournament);
-      setCreateDialogVisible(false);
+    try {
+      // Now initializeTournament properly returns a Tournament object
+      const newTournament = initializeTournament();
+      // And here we save the tournament with the name
+      if (newTournament) {
+        setTournament(newTournament);
+        await saveTournament(newTournament);
+        setCreateDialogVisible(false);
+        toast({
+          title: "Tournament Created",
+          description: `Tournament "${tournamentName}" has been created.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error creating tournament:", error);
       toast({
-        title: "Tournament Created",
-        description: `Tournament "${tournamentName}" has been created.`,
+        title: "Error",
+        description: "Failed to create tournament",
+        variant: "destructive"
       });
     }
   };
 
   const handleSaveTournament = async () => {
     if (tournament) {
-      await saveTournament(tournament);
-      toast({
-        title: "Tournament Saved",
-        description: "Tournament progress has been saved.",
-      });
+      try {
+        await saveTournament(tournament);
+        toast({
+          title: "Tournament Saved",
+          description: "Tournament progress has been saved.",
+        });
+      } catch (error) {
+        console.error("Error saving tournament:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save tournament",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -554,12 +583,12 @@ const Admin = () => {
     }
   };
 
-  const handleRefreshData = () => {
-    // This is a simple method to trigger reloading data
-    // It's used by the AdminForm component to refresh the main view
-    const storedTournament = loadTournament();
-    if (storedTournament) {
-      setTournament(storedTournament);
+  const handleRefreshData = async () => {
+    try {
+      const data = await loadTournament();
+      setTournament(data);
+    } catch (error) {
+      console.error("Error refreshing tournament data:", error);
     }
   };
 
@@ -572,90 +601,101 @@ const Admin = () => {
         
         <div className="mt-6">
           {isLoggedIn ? (
-            <div className="space-y-6">
-              <div className="flex flex-wrap gap-4 mb-8">
-                <Button onClick={() => handleAddItem('discipline')} className="flex items-center gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Create New Discipline
-                </Button>
-                <Button onClick={() => handleAddItem('level')} className="flex items-center gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Create New Level
-                </Button>
-                <Button onClick={() => handleAddItem('poule')} className="flex items-center gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Create New Poule
-                </Button>
-                {/* Fix: Properly access poules through discipline.levels */}
-                <TeamCsvImport 
-                  poules={tournament?.disciplines.flatMap(d => 
-                    d.levels.flatMap(l => 
-                      l.poules.map(p => ({
-                        id: p.id,
-                        name: p.name,
-                        path: `${d.name} - Level ${l.name}`
-                      }))
-                    )
-                  ) || []}
-                  onImportComplete={(teamsWithPoules) => {
-                    if (!tournament) return;
-                    
-                    const updatedTournament = { ...tournament };
-                    
-                    // Process the imported teams
-                    teamsWithPoules.forEach(({ pouleId, teams }) => {
-                      // Find the poule
-                      for (const discipline of updatedTournament.disciplines) {
-                        for (const level of discipline.levels) {
-                          const poule = level.poules.find(p => p.id === pouleId);
-                          if (poule) {
-                            // Add the teams to the poule
-                            poule.teams = [...poule.teams, ...teams];
-                            // Regenerate matches
-                            poule.matches = generateMatches(poule);
-                            return;
-                          }
-                        }
-                      }
-                    });
-                    
-                    setTournament(updatedTournament);
-                    saveTournament(updatedTournament);
-                  }}
-                />
-                <div className="ml-auto">
-                  <Button onClick={handleSaveTournament} className="flex items-center gap-2">
-                    <Save className="h-4 w-4" />
-                    Save Tournament
-                  </Button>
+            loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-pulse flex space-x-2">
+                  <div className="h-3 w-3 bg-primary rounded-full"></div>
+                  <div className="h-3 w-3 bg-primary rounded-full"></div>
+                  <div className="h-3 w-3 bg-primary rounded-full"></div>
                 </div>
               </div>
-              
-              <div className="mt-8">
-                <AdminForm onDataChange={handleRefreshData} />
-              </div>
-              
-              <div className="mt-8">
-                {tournament ? (
-                  <TournamentStructure
-                    disciplines={tournament.disciplines}
-                    tournament={tournament}
-                    isAdmin={true}
-                    navigationState={navigationState}
-                    onNavigationChange={handleNavigationChange}
-                    onEditItem={handleEditItem}
-                    onDeleteItem={handleDeleteItem}
-                    onViewTeams={handleViewTeams}
+            ) : (
+              <div className="space-y-6">
+                
+                <div className="flex flex-wrap gap-4 mb-8">
+                  <Button onClick={() => handleAddItem('discipline')} className="flex items-center gap-2">
+                    <PlusCircle className="h-4 w-4" />
+                    Create New Discipline
+                  </Button>
+                  <Button onClick={() => handleAddItem('level')} className="flex items-center gap-2">
+                    <PlusCircle className="h-4 w-4" />
+                    Create New Level
+                  </Button>
+                  <Button onClick={() => handleAddItem('poule')} className="flex items-center gap-2">
+                    <PlusCircle className="h-4 w-4" />
+                    Create New Poule
+                  </Button>
+                  {/* Fix: Properly access poules through discipline.levels */}
+                  <TeamCsvImport 
+                    poules={tournament?.disciplines.flatMap(d => 
+                      d.levels.flatMap(l => 
+                        l.poules.map(p => ({
+                          id: p.id,
+                          name: p.name,
+                          path: `${d.name} - Level ${l.name}`
+                        }))
+                      )
+                    ) || []}
+                    onImportComplete={async (teamsWithPoules) => {
+                      if (!tournament) return;
+                      
+                      const updatedTournament = { ...tournament };
+                      
+                      // Process the imported teams
+                      teamsWithPoules.forEach(({ pouleId, teams }) => {
+                        // Find the poule
+                        for (const discipline of updatedTournament.disciplines) {
+                          for (const level of discipline.levels) {
+                            const poule = level.poules.find(p => p.id === pouleId);
+                            if (poule) {
+                              // Add the teams to the poule
+                              poule.teams = [...poule.teams, ...teams];
+                              // Regenerate matches
+                              poule.matches = generateMatches(poule);
+                              return;
+                            }
+                          }
+                        }
+                      });
+                      
+                      setTournament(updatedTournament);
+                      await saveTournament(updatedTournament);
+                    }}
                   />
-                ) : (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      No tournament created. Create one to start.
-                    </CardContent>
-                  </Card>
-                )}
+                  <div className="ml-auto">
+                    <Button onClick={handleSaveTournament} className="flex items-center gap-2">
+                      <Save className="h-4 w-4" />
+                      Save Tournament
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="mt-8">
+                  <AdminForm onDataChange={handleRefreshData} />
+                </div>
+                
+                <div className="mt-8">
+                  {tournament ? (
+                    <TournamentStructure
+                      disciplines={tournament.disciplines}
+                      tournament={tournament}
+                      isAdmin={true}
+                      navigationState={navigationState}
+                      onNavigationChange={handleNavigationChange}
+                      onEditItem={handleEditItem}
+                      onDeleteItem={handleDeleteItem}
+                      onViewTeams={handleViewTeams}
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        No tournament created. Create one to start.
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <AdminAuth onAuthenticated={() => setIsLoggedIn(true)} />
           )}

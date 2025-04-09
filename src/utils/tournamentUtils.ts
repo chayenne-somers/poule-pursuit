@@ -217,7 +217,7 @@ export const isMatchComplete = (match: Match): boolean => {
 };
 
 // Save tournament data to Supabase
-export const saveTournament = async (tournament: any): Promise<void> => {
+export const saveTournament = async (tournament: Tournament): Promise<void> => {
   try {
     const { data: session } = await supabase.auth.getSession();
     
@@ -230,11 +230,16 @@ export const saveTournament = async (tournament: any): Promise<void> => {
     const user_id = session.session.user.id;
     
     // Check if a tournament record already exists for this user
-    const { data: existingTournament } = await supabase
+    const { data: existingTournament, error: queryError } = await supabase
       .from('tournaments')
       .select('id')
       .eq('user_id', user_id)
-      .single();
+      .maybeSingle();
+    
+    if (queryError) {
+      console.error("Error checking for existing tournament:", queryError);
+      throw queryError;
+    }
     
     if (existingTournament) {
       // Update existing tournament
@@ -272,7 +277,7 @@ export const saveTournament = async (tournament: any): Promise<void> => {
 };
 
 // Load tournament data from Supabase
-export const loadTournament = async (): Promise<Tournament | null> => {
+export const loadTournament = async (): Promise<Tournament> => {
   try {
     const { data: session } = await supabase.auth.getSession();
     
@@ -283,7 +288,7 @@ export const loadTournament = async (): Promise<Tournament | null> => {
         .from('tournaments')
         .select('data')
         .eq('user_id', user_id)
-        .single();
+        .maybeSingle();
       
       if (error) {
         // If no tournament found in database, try localStorage
@@ -293,7 +298,7 @@ export const loadTournament = async (): Promise<Tournament | null> => {
             const parsedData = JSON.parse(localData);
             return ensureTournamentStructure(parsedData);
           }
-          return null;
+          return initializeTournament();
         }
         throw error;
       }
@@ -310,7 +315,7 @@ export const loadTournament = async (): Promise<Tournament | null> => {
       }
     }
     
-    return null;
+    return initializeTournament();
   } catch (error) {
     console.error("Error loading tournament data:", error);
     
@@ -325,7 +330,7 @@ export const loadTournament = async (): Promise<Tournament | null> => {
       console.error("Error loading from localStorage:", localError);
     }
     
-    return null;
+    return initializeTournament();
   }
 };
 

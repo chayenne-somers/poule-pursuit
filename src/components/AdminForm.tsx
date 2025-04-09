@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { loadTournament, saveTournament, generateId, generateMatches } from '@/utils/tournamentUtils';
-import { Discipline, Level, Poule, Team, Player } from '@/types/tournament';
+import { Discipline, Level, Poule, Team, Player, Tournament } from '@/types/tournament';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,24 +18,51 @@ interface AdminFormProps {
 }
 
 const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
-  const [disciplineName, setDisciplineName] = React.useState('');
-  const [levelName, setLevelName] = React.useState('');
-  const [selectedDiscipline, setSelectedDiscipline] = React.useState('');
-  const [pouleName, setPouleName] = React.useState('');
-  const [disciplineForPoule, setDisciplineForPoule] = React.useState('');
-  const [levelForPoule, setLevelForPoule] = React.useState('');
-  const [player1Name, setPlayer1Name] = React.useState('');
-  const [player2Name, setPlayer2Name] = React.useState('');
-  const [pouleForTeam, setPouleForTeam] = React.useState('');
+  const [disciplineName, setDisciplineName] = useState('');
+  const [levelName, setLevelName] = useState('');
+  const [selectedDiscipline, setSelectedDiscipline] = useState('');
+  const [pouleName, setPouleName] = useState('');
+  const [disciplineForPoule, setDisciplineForPoule] = useState('');
+  const [levelForPoule, setLevelForPoule] = useState('');
+  const [player1Name, setPlayer1Name] = useState('');
+  const [player2Name, setPlayer2Name] = useState('');
+  const [pouleForTeam, setPouleForTeam] = useState('');
+  const [tournament, setTournament] = useState<Tournament | null>(null);
   
   const { toast } = useToast();
-  const tournament = loadTournament();
 
-  const handleAddDiscipline = () => {
+  useEffect(() => {
+    const fetchTournament = async () => {
+      try {
+        const data = await loadTournament();
+        setTournament(data);
+      } catch (error) {
+        console.error("Error loading tournament data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load tournament data",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    fetchTournament();
+  }, [toast]);
+
+  const handleAddDiscipline = async () => {
     if (!disciplineName.trim()) {
       toast({
         title: "Error",
         description: "Please enter a discipline name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!tournament) {
+      toast({
+        title: "Error",
+        description: "Tournament data not loaded",
         variant: "destructive",
       });
       return;
@@ -63,7 +90,8 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
       disciplines: [...tournament.disciplines, newDiscipline]
     };
 
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
+    setTournament(updatedTournament);
     setDisciplineName('');
     onDataChange();
     
@@ -73,7 +101,9 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
     });
   };
 
-  const handleAddLevel = () => {
+  const handleAddLevel = async () => {
+    if (!tournament) return;
+    
     if (!selectedDiscipline) {
       toast({
         title: "Error",
@@ -106,8 +136,9 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
     };
 
     updatedTournament.disciplines[disciplineIndex].levels.push(newLevel);
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     
+    setTournament(updatedTournament);
     setLevelName('');
     setSelectedDiscipline('');
     onDataChange();
@@ -118,7 +149,9 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
     });
   };
 
-  const handleAddPoule = () => {
+  const handleAddPoule = async () => {
+    if (!tournament) return;
+    
     if (!disciplineForPoule || !levelForPoule) {
       toast({
         title: "Error",
@@ -158,8 +191,9 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
     };
 
     updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules.push(newPoule);
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     
+    setTournament(updatedTournament);
     setPouleName('');
     setDisciplineForPoule('');
     setLevelForPoule('');
@@ -171,7 +205,9 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
     });
   };
 
-  const handleAddTeam = () => {
+  const handleAddTeam = async () => {
+    if (!tournament) return;
+    
     if (!pouleForTeam) {
       toast({
         title: "Error",
@@ -239,8 +275,9 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
     const updatedPoule = updatedTournament.disciplines[disciplineIndex].levels[levelIndex].poules[pouleIndex];
     updatedPoule.matches = generateMatches(updatedPoule);
     
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     
+    setTournament(updatedTournament);
     setPlayer1Name('');
     setPlayer2Name('');
     setPouleForTeam('');
@@ -253,9 +290,11 @@ const AdminForm: React.FC<AdminFormProps> = ({ onDataChange }) => {
   };
 
   const getPoulesForSelect = (): { value: string; label: string; }[] => {
+    if (!tournament) return [];
+    
     const poules: { value: string; label: string; }[] = [];
 
-    tournament?.disciplines.forEach(discipline => {
+    tournament.disciplines.forEach(discipline => {
       discipline.levels.forEach(level => {
         level.poules.forEach(poule => {
           poules.push({

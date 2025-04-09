@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -35,64 +34,81 @@ const PouleDetails = () => {
   const [breadcrumb, setBreadcrumb] = useState({ discipline: '', level: '' });
   const [matches, setMatches] = useState<Match[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   // Load tournament data and check if user is admin
   useEffect(() => {
-    const data = loadTournament();
-    setTournament(data);
-    
-    // Check if user is admin
-    const isAdminAuthenticated = sessionStorage.getItem('isAdminAuthenticated') === 'true';
-    setIsAdmin(isAdminAuthenticated);
-    
-    // Find poule and set breadcrumb
-    if (data && pouleId) {
-      let foundPoule: Poule | null = null;
-      let disciplineName = '';
-      let levelName = '';
-      
-      for (const discipline of data.disciplines) {
-        for (const level of discipline.levels) {
-          for (const poule of level.poules) {
-            if (poule.id === pouleId) {
-              foundPoule = poule;
-              disciplineName = discipline.name;
-              levelName = level.name;
-              break;
-            }
-          }
-          if (foundPoule) break;
-        }
-        if (foundPoule) break;
-      }
-      
-      if (foundPoule) {
-        // Ensure matches have the sets array structure
-        const updatedMatches = foundPoule.matches.map(match => {
-          if (!match.sets || match.sets.length === 0) {
-            // Convert old format to new format if needed
-            const sets: SetScore[] = [{}, {}, {}];
-            return { ...match, sets };
-          }
-          // Make sure there are 3 sets
-          const sets = [...match.sets];
-          while (sets.length < 3) {
-            sets.push({});
-          }
-          return { ...match, sets };
-        });
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data = await loadTournament();
+        setTournament(data);
         
-        const updatedPoule = { ...foundPoule, matches: updatedMatches };
-        setPoule(updatedPoule);
-        setMatches(updatedMatches);
-        setBreadcrumb({ 
-          discipline: disciplineName, 
-          level: levelName 
+        // Check if user is admin
+        const isAdminAuthenticated = sessionStorage.getItem('isAdminAuthenticated') === 'true';
+        setIsAdmin(isAdminAuthenticated);
+        
+        // Find poule and set breadcrumb
+        if (data && pouleId) {
+          let foundPoule: Poule | null = null;
+          let disciplineName = '';
+          let levelName = '';
+          
+          for (const discipline of data.disciplines) {
+            for (const level of discipline.levels) {
+              for (const poule of level.poules) {
+                if (poule.id === pouleId) {
+                  foundPoule = poule;
+                  disciplineName = discipline.name;
+                  levelName = level.name;
+                  break;
+                }
+              }
+              if (foundPoule) break;
+            }
+            if (foundPoule) break;
+          }
+          
+          if (foundPoule) {
+            // Ensure matches have the sets array structure
+            const updatedMatches = foundPoule.matches.map(match => {
+              if (!match.sets || match.sets.length === 0) {
+                // Convert old format to new format if needed
+                const sets: SetScore[] = [{}, {}, {}];
+                return { ...match, sets };
+              }
+              // Make sure there are 3 sets
+              const sets = [...match.sets];
+              while (sets.length < 3) {
+                sets.push({});
+              }
+              return { ...match, sets };
+            });
+            
+            const updatedPoule = { ...foundPoule, matches: updatedMatches };
+            setPoule(updatedPoule);
+            setMatches(updatedMatches);
+            setBreadcrumb({ 
+              discipline: disciplineName, 
+              level: levelName 
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading tournament data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load tournament data.",
+          variant: "destructive"
         });
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [pouleId]);
+    };
+    
+    fetchData();
+  }, [pouleId, toast]);
 
   // Handle score changes
   const handleScoreChange = (matchIndex: number, setIndex: number, team: 'A' | 'B', value: string) => {
@@ -120,7 +136,7 @@ const PouleDetails = () => {
   };
 
   // Save scores for a specific match
-  const handleSaveMatch = (matchIndex: number) => {
+  const handleSaveMatch = async (matchIndex: number) => {
     if (!tournament || !poule) return;
     
     // Create updated poule with the specific match updated
@@ -153,7 +169,7 @@ const PouleDetails = () => {
     
     if (updated) {
       // Save tournament
-      saveTournament(updatedTournament);
+      await saveTournament(updatedTournament);
       setTournament(updatedTournament);
       setPoule(updatedPoule);
       
@@ -165,7 +181,7 @@ const PouleDetails = () => {
   };
 
   // Save all matches
-  const handleSaveScores = () => {
+  const handleSaveScores = async () => {
     if (!tournament || !poule) return;
     
     // Update poule with new matches
@@ -195,7 +211,7 @@ const PouleDetails = () => {
     
     if (updated) {
       // Save tournament
-      saveTournament(updatedTournament);
+      await saveTournament(updatedTournament);
       setTournament(updatedTournament);
       setPoule(updatedPoule);
       
@@ -206,12 +222,21 @@ const PouleDetails = () => {
     }
   };
 
+  
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
       
       <main className="container px-4 pt-24 pb-16 mx-auto">
-        {poule ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-pulse flex space-x-2">
+              <div className="h-3 w-3 bg-primary rounded-full"></div>
+              <div className="h-3 w-3 bg-primary rounded-full"></div>
+              <div className="h-3 w-3 bg-primary rounded-full"></div>
+            </div>
+          </div>
+        ) : poule ? (
           <>
             <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -271,10 +296,15 @@ const PouleDetails = () => {
           </>
         ) : (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-pulse flex space-x-2">
-              <div className="h-3 w-3 bg-primary rounded-full"></div>
-              <div className="h-3 w-3 bg-primary rounded-full"></div>
-              <div className="h-3 w-3 bg-primary rounded-full"></div>
+            <div className="text-center">
+              <h2 className="text-xl font-medium mb-2">Poule not found</h2>
+              <p className="text-muted-foreground mb-4">The poule you're looking for doesn't exist or has been removed.</p>
+              <Button variant="outline" asChild>
+                <Link to="/">
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Back to Tournament
+                </Link>
+              </Button>
             </div>
           </div>
         )}
