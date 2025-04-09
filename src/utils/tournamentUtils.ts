@@ -1,6 +1,7 @@
 import { Match, Poule, Team, SetScore, Tournament } from "../types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 // Generate a unique ID
 export const generateId = (): string => {
@@ -216,6 +217,16 @@ export const isMatchComplete = (match: Match): boolean => {
   return setsWonA >= 2 || setsWonB >= 2;
 };
 
+// Convert Tournament to Json
+const tournamentToJson = (tournament: Tournament): Json => {
+  return tournament as unknown as Json;
+};
+
+// Convert Json to Tournament
+const jsonToTournament = (json: Json): Tournament => {
+  return json as unknown as Tournament;
+};
+
 // Save tournament data to Supabase
 export const saveTournament = async (tournament: Tournament): Promise<void> => {
   try {
@@ -241,12 +252,15 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
       throw queryError;
     }
     
+    // Convert tournament to Json type for Supabase
+    const tournamentJson = tournamentToJson(tournament);
+    
     if (existingTournament) {
       // Update existing tournament
       const { error } = await supabase
         .from('tournaments')
         .update({ 
-          data: tournament,
+          data: tournamentJson,
           updated_at: new Date().toISOString()
         })
         .eq('id', existingTournament.id);
@@ -259,7 +273,7 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
         .insert({ 
           name: 'My Tournament',
           user_id,
-          data: tournament
+          data: tournamentJson
         });
       
       if (error) throw error;
@@ -303,8 +317,9 @@ export const loadTournament = async (): Promise<Tournament> => {
         throw error;
       }
       
-      if (data) {
-        return ensureTournamentStructure(data.data);
+      if (data && data.data) {
+        // Convert from Json to Tournament
+        return ensureTournamentStructure(jsonToTournament(data.data));
       }
     } else {
       // Not authenticated, fall back to localStorage
