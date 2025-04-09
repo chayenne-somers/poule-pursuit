@@ -32,6 +32,9 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      // Get the current URL to use as redirect URL
+      const currentUrl = window.location.origin;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -39,7 +42,8 @@ const Auth = () => {
           data: {
             username,
             full_name: fullName
-          }
+          },
+          emailRedirectTo: `${currentUrl}/auth/callback` // Use dynamic redirect
         }
       });
 

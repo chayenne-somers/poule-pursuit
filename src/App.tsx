@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import PouleDetails from "./pages/PouleDetails";
 import NotFound from "./pages/NotFound";
 import AuthCheck from "./components/AuthCheck";
@@ -23,6 +24,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route element={<AuthCheck />}>
               <Route path="/" element={<Index />} />
               <Route path="/admin" element={<Admin />} />
