@@ -23,10 +23,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Auth routes */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             
-            {/* Poule routes MUST be outside AuthCheck to be accessible without authentication */}
+            {/* Public routes - Poule details must be outside AuthCheck */}
             <Route path="/poule/:pouleId" element={<PouleDetails />} />
             
             {/* Protected routes */}

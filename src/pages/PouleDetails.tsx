@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { 
   Match, 
   Poule, 
@@ -22,10 +22,16 @@ import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription
+} from "@/components/ui/alert";
 import { 
   ChevronLeft, 
   Save,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from 'lucide-react';
 
 const PouleDetails = () => {
@@ -35,93 +41,104 @@ const PouleDetails = () => {
   const [breadcrumb, setBreadcrumb] = useState({ discipline: '', level: '' });
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const location = useLocation();
+
+  // Debug the current route
+  useEffect(() => {
+    console.log("PouleDetails: Current route", location.pathname);
+    console.log("PouleDetails: User authenticated:", user ? "Yes" : "No");
+    console.log("PouleDetails: Poule ID:", pouleId);
+  }, [location, user, pouleId]);
 
   // Load tournament data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
         console.log("Loading tournament data for poule:", pouleId);
         
-        // Load tournament data from localStorage first, as this is accessible to all users
-        const data = await loadTournament();
+        if (!pouleId) {
+          setError("No poule ID provided");
+          setLoading(false);
+          return;
+        }
         
-        console.log("Tournament data loaded:", data);
+        // Load tournament data
+        const data = await loadTournament();
+        console.log("Tournament data loaded:", data ? "Success" : "Failed");
+        
+        if (!data || !data.disciplines || data.disciplines.length === 0) {
+          setError("Tournament data is empty or invalid");
+          setLoading(false);
+          return;
+        }
+        
         setTournament(data);
         
         // Find poule and set breadcrumb
-        if (data && pouleId) {
-          console.log("Looking for poule with ID:", pouleId);
-          let foundPoule: Poule | null = null;
-          let disciplineName = '';
-          let levelName = '';
-          
-          for (const discipline of data.disciplines) {
-            for (const level of discipline.levels) {
-              for (const poule of level.poules) {
-                if (poule.id === pouleId) {
-                  foundPoule = poule;
-                  disciplineName = discipline.name;
-                  levelName = level.name;
-                  break;
-                }
+        console.log("Looking for poule with ID:", pouleId);
+        let foundPoule: Poule | null = null;
+        let disciplineName = '';
+        let levelName = '';
+        
+        for (const discipline of data.disciplines) {
+          for (const level of discipline.levels) {
+            for (const poule of level.poules) {
+              if (poule.id === pouleId) {
+                foundPoule = poule;
+                disciplineName = discipline.name;
+                levelName = level.name;
+                break;
               }
-              if (foundPoule) break;
             }
             if (foundPoule) break;
           }
-          
-          if (foundPoule) {
-            console.log("Found poule:", foundPoule);
-            // Ensure matches have the sets array structure
-            const updatedMatches = foundPoule.matches.map(match => {
-              if (!match.sets || match.sets.length === 0) {
-                // Convert old format to new format if needed
-                const sets: SetScore[] = [{}, {}, {}];
-                return { ...match, sets };
-              }
-              // Make sure there are 3 sets
-              const sets = [...match.sets];
-              while (sets.length < 3) {
-                sets.push({});
-              }
+          if (foundPoule) break;
+        }
+        
+        if (foundPoule) {
+          console.log("Found poule:", foundPoule.name);
+          // Ensure matches have the sets array structure
+          const updatedMatches = foundPoule.matches.map(match => {
+            if (!match.sets || match.sets.length === 0) {
+              // Convert old format to new format if needed
+              const sets: SetScore[] = [{}, {}, {}];
               return { ...match, sets };
-            });
-            
-            const updatedPoule = { ...foundPoule, matches: updatedMatches };
-            setPoule(updatedPoule);
-            setMatches(updatedMatches);
-            setBreadcrumb({ 
-              discipline: disciplineName, 
-              level: levelName 
-            });
-          } else {
-            console.log("Poule not found with ID:", pouleId);
-            toast({
-              title: "Error",
-              description: `Poule with ID ${pouleId} not found in tournament data`,
-              variant: "destructive"
-            });
-          }
+            }
+            // Make sure there are 3 sets
+            const sets = [...match.sets];
+            while (sets.length < 3) {
+              sets.push({});
+            }
+            return { ...match, sets };
+          });
+          
+          const updatedPoule = { ...foundPoule, matches: updatedMatches };
+          setPoule(updatedPoule);
+          setMatches(updatedMatches);
+          setBreadcrumb({ 
+            discipline: disciplineName, 
+            level: levelName 
+          });
+        } else {
+          console.error("Poule not found with ID:", pouleId);
+          setError(`Poule with ID ${pouleId} not found in tournament data`);
         }
       } catch (error) {
         console.error("Error loading tournament data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load tournament data.",
-          variant: "destructive"
-        });
+        setError("Failed to load tournament data. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
     
-    if (pouleId) {
-      fetchData();
-    }
-  }, [pouleId, toast]);
+    fetchData();
+  }, [pouleId]);
 
   // Handle score changes
   const handleScoreChange = (matchIndex: number, setIndex: number, team: 'A' | 'B', value: string) => {
@@ -248,6 +265,29 @@ const PouleDetails = () => {
               <div className="h-3 w-3 bg-primary rounded-full"></div>
             </div>
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Alert variant="destructive" className="mb-6 max-w-md">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            {user ? (
+              <Button variant="outline" asChild>
+                <Link to="/">
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Back to Tournament
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" asChild>
+                <Link to="/auth">
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Log in
+                </Link>
+              </Button>
+            )}
+          </div>
         ) : poule ? (
           <>
             <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -317,11 +357,18 @@ const PouleDetails = () => {
             <div className="text-center">
               <h2 className="text-xl font-medium mb-2">Poule not found</h2>
               <p className="text-muted-foreground mb-4">The poule you're looking for doesn't exist or has been removed.</p>
-              {user && (
+              {user ? (
                 <Button variant="outline" asChild>
                   <Link to="/">
                     <ChevronLeft className="h-4 w-4 mr-2" />
                     Back to Tournament
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" asChild>
+                  <Link to="/auth">
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Log in
                   </Link>
                 </Button>
               )}

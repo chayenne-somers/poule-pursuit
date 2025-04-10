@@ -301,68 +301,82 @@ export const loadTournament = async (): Promise<Tournament> => {
   try {
     console.log("Loading tournament data");
     
+    // Initialize a tournament structure to use as fallback if nothing is found
+    const fallbackTournament = initializeTournament();
+    
     // First try to get data from localStorage regardless of authentication status
-    // This ensures non-authenticated users can still see tournament data
     const localData = localStorage.getItem('tournament');
     
     if (localData) {
       try {
         console.log("Found tournament data in localStorage");
         const parsedData = JSON.parse(localData);
+        // Always ensure proper structure and return immediately
         return ensureTournamentStructure(parsedData);
       } catch (parseError) {
         console.error("Error parsing localStorage data:", parseError);
+        // Continue to fallback options below
       }
     } else {
-      console.log("No tournament data found in localStorage");
+      console.log("No tournament data in localStorage, checking for sample data");
+      // If no localStorage data, initialize sample data for all users
+      localStorage.setItem('tournament', JSON.stringify(fallbackTournament));
+      
+      // For unauthenticated users, we'll return the sample data directly
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) {
+        console.log("Unauthenticated user, returning sample tournament data");
+        return fallbackTournament;
+      }
     }
     
-    // Check if user is authenticated before trying to access Supabase
-    // This is crucial for unauthenticated users
-    const { data: session } = await supabase.auth.getSession();
-    
-    if (session.session) {
-      console.log("User is authenticated, checking Supabase for data");
-      const user_id = session.session.user.id;
+    // For authenticated users, check Supabase
+    try {
+      console.log("Checking Supabase for tournament data");
+      const { data: session } = await supabase.auth.getSession();
       
-      const { data, error } = await supabase
-        .from('tournaments')
-        .select('data')
-        .eq('user_id', user_id)
-        .maybeSingle();
-      
-      if (error) {
-        console.error("Error fetching from Supabase:", error);
-        // Fall back to initializing new tournament
-        console.log("Initializing new tournament after Supabase error");
-        const newTournament = initializeTournament();
-        localStorage.setItem('tournament', JSON.stringify(newTournament));
-        return newTournament;
+      if (session.session) {
+        const user_id = session.session.user.id;
+        
+        const { data, error } = await supabase
+          .from('tournaments')
+          .select('data')
+          .eq('user_id', user_id)
+          .maybeSingle();
+        
+        if (error) {
+          console.error("Error fetching from Supabase:", error);
+          throw error;
+        }
+        
+        if (data && data.data) {
+          console.log("Found tournament data in Supabase");
+          const tournament = ensureTournamentStructure(jsonToTournament(data.data));
+          localStorage.setItem('tournament', JSON.stringify(tournament));
+          return tournament;
+        }
       }
-      
-      if (data && data.data) {
-        console.log("Found tournament data in Supabase");
-        // Convert from Json to Tournament
-        const tournament = ensureTournamentStructure(jsonToTournament(data.data));
-        // Save to localStorage for future access without authentication
-        localStorage.setItem('tournament', JSON.stringify(tournament));
-        return tournament;
-      }
-    } else {
-      console.log("User is not authenticated, only using localStorage data");
+    } catch (supabaseError) {
+      console.error("Supabase error:", supabaseError);
+      // Fall back to localStorage or sample data
     }
     
-    // If nothing found, initialize new tournament
-    console.log("No tournament data found anywhere, initializing new tournament");
-    const newTournament = initializeTournament();
-    localStorage.setItem('tournament', JSON.stringify(newTournament));
-    return newTournament;
+    // If we reach here, we'll use what's in localStorage (which might be sample data)
+    const finalLocalData = localStorage.getItem('tournament');
+    if (finalLocalData) {
+      try {
+        return ensureTournamentStructure(JSON.parse(finalLocalData));
+      } catch (e) {
+        console.error("Error parsing final localStorage data:", e);
+      }
+    }
+    
+    console.log("Falling back to sample tournament data");
+    return fallbackTournament;
     
   } catch (error) {
     console.error("Error loading tournament data:", error);
-    
-    // Final fallback, initialize new tournament
-    console.log("Error occurred, initializing new tournament as fallback");
+    // Final fallback to sample data
     const newTournament = initializeTournament();
     localStorage.setItem('tournament', JSON.stringify(newTournament));
     return newTournament;
@@ -371,6 +385,11 @@ export const loadTournament = async (): Promise<Tournament> => {
 
 // Ensure safe tournament loading with proper defaults
 const ensureTournamentStructure = (parsedData: any): Tournament => {
+  if (!parsedData) {
+    console.log("Invalid tournament data, initializing new tournament");
+    return initializeTournament();
+  }
+  
   // Ensure disciplines exists
   if (!parsedData.disciplines) {
     parsedData.disciplines = [];
@@ -383,31 +402,29 @@ const ensureTournamentStructure = (parsedData: any): Tournament => {
     }
     
     // Ensure each level has a poules array
-    discipline.levels.forEach((level: any) => {
+    parsedData.disciplines.forEach((level: any) => {
       if (!level.poules) {
         level.poules = [];
       }
       
       // Ensure each poule has teams and matches arrays
-      discipline.levels.forEach((level: any) => {
-        level.poules.forEach((poule: any) => {
-          if (!poule.teams) {
-            poule.teams = [];
+      level.poules.forEach((poule: any) => {
+        if (!poule.teams) {
+          poule.teams = [];
+        }
+        if (!poule.matches) {
+          poule.matches = [];
+        }
+        
+        // Ensure each match has a sets array with 3 sets
+        poule.matches.forEach((match: any) => {
+          if (!match.sets || !Array.isArray(match.sets)) {
+            match.sets = [{}, {}, {}];
           }
-          if (!poule.matches) {
-            poule.matches = [];
+          // Ensure 3 sets
+          while (match.sets.length < 3) {
+            match.sets.push({});
           }
-          
-          // Ensure each match has a sets array with 3 sets
-          poule.matches.forEach((match: any) => {
-            if (!match.sets || !Array.isArray(match.sets)) {
-              match.sets = [{}, {}, {}];
-            }
-            // Ensure 3 sets
-            while (match.sets.length < 3) {
-              match.sets.push({});
-            }
-          });
         });
       });
     });
@@ -430,8 +447,11 @@ export const checkAdminCredentials = (username: string, password: string): boole
   return username === storedUsername && password === storedPassword;
 };
 
-// Initialize sample tournament data
+// Initialize sample tournament data with example teams and matches
 export const initializeTournament = (): Tournament => {
+  console.log("Initializing sample tournament data");
+  
+  // Create base structure
   const disciplines = [
     { id: "d1", name: "Dames dubbel", levels: [] },
     { id: "d2", name: "Heren dubbel", levels: [] },
@@ -449,7 +469,45 @@ export const initializeTournament = (): Tournament => {
     ];
   });
 
-  // Initialize admin credentials if they don't exist
+  // Add a sample poule with teams and matches to the first discipline and level
+  const sampleTeams = [
+    {
+      id: "team1",
+      players: [
+        { id: "p1", name: "Alice" },
+        { id: "p2", name: "Bob" }
+      ]
+    },
+    {
+      id: "team2",
+      players: [
+        { id: "p3", name: "Charlie" },
+        { id: "p4", name: "Diana" }
+      ]
+    },
+    {
+      id: "team3",
+      players: [
+        { id: "p5", name: "Eve" },
+        { id: "p6", name: "Frank" }
+      ]
+    }
+  ];
+  
+  const samplePoule = {
+    id: "sample-poule-123",
+    name: "A",
+    teams: sampleTeams,
+    matches: []
+  };
+  
+  // Generate matches for the sample poule
+  samplePoule.matches = generateMatches(samplePoule);
+  
+  // Add the sample poule to the first discipline and level
+  disciplines[0].levels[0].poules = [samplePoule];
+
+  // Add admin credentials if they don't exist
   if (!localStorage.getItem('adminCredentials')) {
     saveAdminCredentials('admin', 'admin123');
   }
