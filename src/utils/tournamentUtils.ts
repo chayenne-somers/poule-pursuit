@@ -1,4 +1,3 @@
-
 import { Match, Poule, Team, SetScore, Tournament } from "../types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -279,6 +278,10 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
       
       if (error) throw error;
     }
+    
+    // Also save to localStorage for quick access without authentication
+    localStorage.setItem('tournament', JSON.stringify(tournament));
+    
   } catch (error: any) {
     console.error("Error saving tournament data:", error);
     // Fall back to localStorage on error
@@ -291,9 +294,23 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
   }
 };
 
-// Load tournament data from Supabase
+// Load tournament data from Supabase or localStorage
 export const loadTournament = async (): Promise<Tournament> => {
   try {
+    // First try to get data from localStorage regardless of authentication status
+    // This ensures non-authenticated users can still see tournament data
+    const localData = localStorage.getItem('tournament');
+    
+    if (localData) {
+      try {
+        const parsedData = JSON.parse(localData);
+        return ensureTournamentStructure(parsedData);
+      } catch (parseError) {
+        console.error("Error parsing localStorage data:", parseError);
+      }
+    }
+    
+    // If no localStorage data or parsing fails, try Supabase for authenticated users
     const { data: session } = await supabase.auth.getSession();
     
     if (session.session) {
@@ -306,53 +323,37 @@ export const loadTournament = async (): Promise<Tournament> => {
         .maybeSingle();
       
       if (error) {
-        // If no tournament found in database, try localStorage
         if (error.code === 'PGRST116') {
-          const localData = localStorage.getItem('tournament');
-          if (localData) {
-            const parsedData = JSON.parse(localData);
-            return ensureTournamentStructure(parsedData);
-          }
-          return initializeTournament();
+          // If no tournament found in database, initialize new tournament
+          const newTournament = initializeTournament();
+          // Save to localStorage for future access
+          localStorage.setItem('tournament', JSON.stringify(newTournament));
+          return newTournament;
         }
         throw error;
       }
       
       if (data && data.data) {
         // Convert from Json to Tournament
-        return ensureTournamentStructure(jsonToTournament(data.data));
+        const tournament = ensureTournamentStructure(jsonToTournament(data.data));
+        // Save to localStorage for future access without authentication
+        localStorage.setItem('tournament', JSON.stringify(tournament));
+        return tournament;
       }
     }
     
-    // Not authenticated, always try to load from localStorage first
-    const localData = localStorage.getItem('tournament');
-    if (localData) {
-      try {
-        const parsedData = JSON.parse(localData);
-        return ensureTournamentStructure(parsedData);
-      } catch (parseError) {
-        console.error("Error parsing localStorage data:", parseError);
-      }
-    }
-    
-    // If no data in localStorage or parsing fails, initialize new tournament
-    return initializeTournament();
+    // If nothing found, initialize new tournament
+    const newTournament = initializeTournament();
+    localStorage.setItem('tournament', JSON.stringify(newTournament));
+    return newTournament;
     
   } catch (error) {
     console.error("Error loading tournament data:", error);
     
-    // Fall back to localStorage on error
-    try {
-      const localData = localStorage.getItem('tournament');
-      if (localData) {
-        const parsedData = JSON.parse(localData);
-        return ensureTournamentStructure(parsedData);
-      }
-    } catch (localError) {
-      console.error("Error loading from localStorage:", localError);
-    }
-    
-    return initializeTournament();
+    // Final fallback, initialize new tournament
+    const newTournament = initializeTournament();
+    localStorage.setItem('tournament', JSON.stringify(newTournament));
+    return newTournament;
   }
 };
 

@@ -46,7 +46,9 @@ const PouleDetails = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        console.log("Loading tournament data for poule:", pouleId);
         const data = await loadTournament();
+        console.log("Tournament data loaded:", data);
         setTournament(data);
         
         // Check if user is admin
@@ -75,6 +77,7 @@ const PouleDetails = () => {
           }
           
           if (foundPoule) {
+            console.log("Found poule:", foundPoule);
             // Ensure matches have the sets array structure
             const updatedMatches = foundPoule.matches.map(match => {
               if (!match.sets || match.sets.length === 0) {
@@ -97,6 +100,8 @@ const PouleDetails = () => {
               discipline: disciplineName, 
               level: levelName 
             });
+          } else {
+            console.log("Poule not found with ID:", pouleId);
           }
         }
       } catch (error) {
