@@ -30,6 +30,15 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Debug auth state
+  useEffect(() => {
+    console.log("AuthCheck: Auth state updated", { 
+      user: user ? "Authenticated" : "Unauthenticated", 
+      path: location.pathname,
+      allowAccess: location.pathname.startsWith('/poule/')
+    });
+  }, [user, location.pathname]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

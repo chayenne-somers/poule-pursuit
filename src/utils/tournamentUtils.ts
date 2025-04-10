@@ -230,11 +230,15 @@ const jsonToTournament = (json: Json): Tournament => {
 // Save tournament data to Supabase
 export const saveTournament = async (tournament: Tournament): Promise<void> => {
   try {
+    // Always save to localStorage first for both authenticated and unauthenticated users
+    localStorage.setItem('tournament', JSON.stringify(tournament));
+    console.log("Tournament saved to localStorage");
+    
+    // Check if user is authenticated
     const { data: session } = await supabase.auth.getSession();
     
     if (!session.session) {
-      // Fall back to localStorage if not authenticated
-      localStorage.setItem('tournament', JSON.stringify(tournament));
+      console.log("No authenticated session, data only saved to localStorage");
       return;
     }
     
@@ -266,6 +270,7 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
         .eq('id', existingTournament.id);
       
       if (error) throw error;
+      console.log("Tournament updated in Supabase");
     } else {
       // Create new tournament
       const { error } = await supabase
@@ -277,15 +282,12 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
         });
       
       if (error) throw error;
+      console.log("Tournament created in Supabase");
     }
-    
-    // Also save to localStorage for quick access without authentication
-    localStorage.setItem('tournament', JSON.stringify(tournament));
     
   } catch (error: any) {
     console.error("Error saving tournament data:", error);
-    // Fall back to localStorage on error
-    localStorage.setItem('tournament', JSON.stringify(tournament));
+    // We already saved to localStorage at the beginning, so no need to do it again
     toast({
       title: "Error saving data",
       description: "Your data has been saved locally but not to the cloud.",
@@ -294,26 +296,32 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
   }
 };
 
-// Load tournament data from Supabase or localStorage
+// Load tournament data from localStorage first, then Supabase
 export const loadTournament = async (): Promise<Tournament> => {
   try {
+    console.log("Loading tournament data");
+    
     // First try to get data from localStorage regardless of authentication status
     // This ensures non-authenticated users can still see tournament data
     const localData = localStorage.getItem('tournament');
     
     if (localData) {
       try {
+        console.log("Found tournament data in localStorage");
         const parsedData = JSON.parse(localData);
         return ensureTournamentStructure(parsedData);
       } catch (parseError) {
         console.error("Error parsing localStorage data:", parseError);
       }
+    } else {
+      console.log("No tournament data found in localStorage");
     }
     
     // If no localStorage data or parsing fails, try Supabase for authenticated users
     const { data: session } = await supabase.auth.getSession();
     
     if (session.session) {
+      console.log("User is authenticated, checking Supabase for data");
       const user_id = session.session.user.id;
       
       const { data, error } = await supabase
@@ -324,6 +332,7 @@ export const loadTournament = async (): Promise<Tournament> => {
       
       if (error) {
         if (error.code === 'PGRST116') {
+          console.log("No tournament found in Supabase, initializing new tournament");
           // If no tournament found in database, initialize new tournament
           const newTournament = initializeTournament();
           // Save to localStorage for future access
@@ -334,15 +343,19 @@ export const loadTournament = async (): Promise<Tournament> => {
       }
       
       if (data && data.data) {
+        console.log("Found tournament data in Supabase");
         // Convert from Json to Tournament
         const tournament = ensureTournamentStructure(jsonToTournament(data.data));
         // Save to localStorage for future access without authentication
         localStorage.setItem('tournament', JSON.stringify(tournament));
         return tournament;
       }
+    } else {
+      console.log("User is not authenticated, only using localStorage data");
     }
     
     // If nothing found, initialize new tournament
+    console.log("No tournament data found anywhere, initializing new tournament");
     const newTournament = initializeTournament();
     localStorage.setItem('tournament', JSON.stringify(newTournament));
     return newTournament;
@@ -351,6 +364,7 @@ export const loadTournament = async (): Promise<Tournament> => {
     console.error("Error loading tournament data:", error);
     
     // Final fallback, initialize new tournament
+    console.log("Error occurred, initializing new tournament as fallback");
     const newTournament = initializeTournament();
     localStorage.setItem('tournament', JSON.stringify(newTournament));
     return newTournament;

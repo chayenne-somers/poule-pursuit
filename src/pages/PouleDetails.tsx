@@ -35,25 +35,23 @@ const PouleDetails = () => {
   const [poule, setPoule] = useState<Poule | null>(null);
   const [breadcrumb, setBreadcrumb] = useState({ discipline: '', level: '' });
   const [matches, setMatches] = useState<Match[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Load tournament data and check if user is admin
+  // Load tournament data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         console.log("Loading tournament data for poule:", pouleId);
+        
+        // Load tournament data from localStorage first, as this is accessible to all users
         const data = await loadTournament();
+        
         console.log("Tournament data loaded:", data);
         setTournament(data);
-        
-        // Check if user is admin
-        const isAdminAuthenticated = sessionStorage.getItem('isAdminAuthenticated') === 'true';
-        setIsAdmin(isAdminAuthenticated);
         
         // Find poule and set breadcrumb
         if (data && pouleId) {
@@ -177,7 +175,7 @@ const PouleDetails = () => {
     }
     
     if (updated) {
-      // Save tournament
+      // Save tournament - this now works for both authenticated and unauthenticated users
       await saveTournament(updatedTournament);
       setTournament(updatedTournament);
       setPoule(updatedPoule);
@@ -219,7 +217,7 @@ const PouleDetails = () => {
     }
     
     if (updated) {
-      // Save tournament
+      // Save tournament - ensure this works for both authenticated and unauthenticated users
       await saveTournament(updatedTournament);
       setTournament(updatedTournament);
       setPoule(updatedPoule);
@@ -231,7 +229,6 @@ const PouleDetails = () => {
     }
   };
 
-  
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
@@ -277,7 +274,7 @@ const PouleDetails = () => {
                   </Button>
                 )}
                 
-                {/* Always show Save All Scores button for admins or regular users */}
+                {/* Always show Save All Scores button for any user */}
                 <Button onClick={handleSaveScores}>
                   <Save className="h-4 w-4 mr-2" />
                   Save All Scores

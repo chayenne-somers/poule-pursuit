@@ -25,13 +25,16 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
-            {/* Make Poule routes accessible without authentication */}
+            
+            {/* Make Poule routes accessible without authentication - OUTSIDE AuthCheck */}
             <Route path="/poule/:pouleId" element={<PouleDetails />} />
+            
             {/* Protected routes */}
             <Route element={<AuthCheck />}>
               <Route path="/" element={<Index />} />
               <Route path="/admin" element={<Admin />} />
             </Route>
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
