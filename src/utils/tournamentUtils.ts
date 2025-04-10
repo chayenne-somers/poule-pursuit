@@ -1,3 +1,4 @@
+
 import { Match, Poule, Team, SetScore, Tournament } from "../types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -321,16 +322,22 @@ export const loadTournament = async (): Promise<Tournament> => {
         // Convert from Json to Tournament
         return ensureTournamentStructure(jsonToTournament(data.data));
       }
-    } else {
-      // Not authenticated, fall back to localStorage
-      const localData = localStorage.getItem('tournament');
-      if (localData) {
+    }
+    
+    // Not authenticated, always try to load from localStorage first
+    const localData = localStorage.getItem('tournament');
+    if (localData) {
+      try {
         const parsedData = JSON.parse(localData);
         return ensureTournamentStructure(parsedData);
+      } catch (parseError) {
+        console.error("Error parsing localStorage data:", parseError);
       }
     }
     
+    // If no data in localStorage or parsing fails, initialize new tournament
     return initializeTournament();
+    
   } catch (error) {
     console.error("Error loading tournament data:", error);
     
