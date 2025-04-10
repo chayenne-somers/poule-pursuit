@@ -26,7 +26,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             
-            {/* Make Poule routes accessible without authentication - OUTSIDE AuthCheck */}
+            {/* Poule routes MUST be outside AuthCheck to be accessible without authentication */}
             <Route path="/poule/:pouleId" element={<PouleDetails />} />
             
             {/* Protected routes */}

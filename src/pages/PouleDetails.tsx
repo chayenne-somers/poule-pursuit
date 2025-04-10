@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { 
   Match, 
   Poule, 
@@ -12,7 +12,6 @@ import {
   saveTournament, 
   calculateStandings, 
   getPouleWinner,
-  isSetComplete,
   isMatchComplete
 } from '@/utils/tournamentUtils';
 import TeamStandings from '@/components/TeamStandings';
@@ -37,7 +36,6 @@ const PouleDetails = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   // Load tournament data
@@ -55,6 +53,7 @@ const PouleDetails = () => {
         
         // Find poule and set breadcrumb
         if (data && pouleId) {
+          console.log("Looking for poule with ID:", pouleId);
           let foundPoule: Poule | null = null;
           let disciplineName = '';
           let levelName = '';
@@ -100,6 +99,11 @@ const PouleDetails = () => {
             });
           } else {
             console.log("Poule not found with ID:", pouleId);
+            toast({
+              title: "Error",
+              description: `Poule with ID ${pouleId} not found in tournament data`,
+              variant: "destructive"
+            });
           }
         }
       } catch (error) {
@@ -114,7 +118,9 @@ const PouleDetails = () => {
       }
     };
     
-    fetchData();
+    if (pouleId) {
+      fetchData();
+    }
   }, [pouleId, toast]);
 
   // Handle score changes

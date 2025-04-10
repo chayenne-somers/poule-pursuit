@@ -317,7 +317,8 @@ export const loadTournament = async (): Promise<Tournament> => {
       console.log("No tournament data found in localStorage");
     }
     
-    // If no localStorage data or parsing fails, try Supabase for authenticated users
+    // Check if user is authenticated before trying to access Supabase
+    // This is crucial for unauthenticated users
     const { data: session } = await supabase.auth.getSession();
     
     if (session.session) {
@@ -331,15 +332,12 @@ export const loadTournament = async (): Promise<Tournament> => {
         .maybeSingle();
       
       if (error) {
-        if (error.code === 'PGRST116') {
-          console.log("No tournament found in Supabase, initializing new tournament");
-          // If no tournament found in database, initialize new tournament
-          const newTournament = initializeTournament();
-          // Save to localStorage for future access
-          localStorage.setItem('tournament', JSON.stringify(newTournament));
-          return newTournament;
-        }
-        throw error;
+        console.error("Error fetching from Supabase:", error);
+        // Fall back to initializing new tournament
+        console.log("Initializing new tournament after Supabase error");
+        const newTournament = initializeTournament();
+        localStorage.setItem('tournament', JSON.stringify(newTournament));
+        return newTournament;
       }
       
       if (data && data.data) {
