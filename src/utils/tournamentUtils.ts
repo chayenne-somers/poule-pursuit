@@ -376,7 +376,7 @@ export const loadTournament = async (): Promise<Tournament> => {
       // Fall back to localStorage or sample data
     }
     
-    // If we reach here, we'll use what's in localStorage (which might be sample data)
+    // If we reach here, we'll use what's in localStorage (which might be sample data)\
     // or merge with demo poules if user is not authenticated
     const finalLocalData = localStorage.getItem('tournament');
     if (finalLocalData) {
@@ -849,4 +849,4 @@ export const initializeTournament = (): Tournament => {
   
   // Complete some matches in the second demo poule
   if (demoPoule2.matches.length > 0) {
-    demoPoule2.matches[0].
+    demoPoule2.matches[0].completed = true
