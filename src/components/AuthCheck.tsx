@@ -39,7 +39,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     });
   }, [user, location.pathname]);
 
-  // Always check if this is a poule route first, before checking authentication
+  // All poule routes are public
   const isPouleRoute = location.pathname.startsWith('/poule/');
   
   // Special case: always show loading indicator until auth check completes

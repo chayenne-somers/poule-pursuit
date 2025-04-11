@@ -27,7 +27,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             
-            {/* Public routes - Poule details must be outside AuthCheck */}
+            {/* Public routes - Any poule details must be outside AuthCheck */}
             <Route path="/poule/:pouleId" element={<PouleDetails />} />
             
             {/* Protected routes */}
