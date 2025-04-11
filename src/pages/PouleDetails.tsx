@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { 
@@ -86,10 +85,12 @@ const PouleDetails = () => {
         let disciplineName = '';
         let levelName = '';
         
+        // Traverse through all disciplines, levels, and poules
         for (const discipline of data.disciplines) {
           for (const level of discipline.levels) {
             for (const poule of level.poules) {
               if (poule.id === pouleId) {
+                console.log(`Found poule '${poule.name}' in ${discipline.name}, level ${level.name}`);
                 foundPoule = poule;
                 disciplineName = discipline.name;
                 levelName = level.name;

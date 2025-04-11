@@ -1,4 +1,3 @@
-
 import { Match, Poule, Team, SetScore, Tournament, Player } from "../types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -312,23 +311,24 @@ export const loadTournament = async (): Promise<Tournament> => {
       try {
         console.log("Found tournament data in localStorage");
         const parsedData = JSON.parse(localData);
-        // Always ensure proper structure and return immediately
-        return ensureTournamentStructure(parsedData);
+        
+        // For unauthenticated users, use localStorage data directly
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session) {
+          console.log("Unauthenticated user, using localStorage tournament data");
+          return ensureTournamentStructure(parsedData);
+        }
+        
+        // For authenticated users, continue checking for Supabase data
       } catch (parseError) {
         console.error("Error parsing localStorage data:", parseError);
         // Continue to fallback options below
       }
     } else {
-      console.log("No tournament data in localStorage, checking for sample data");
+      console.log("No tournament data in localStorage, initializing sample data");
       // If no localStorage data, initialize sample data for all users
       localStorage.setItem('tournament', JSON.stringify(fallbackTournament));
-      
-      // For unauthenticated users, we'll return the sample data directly
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) {
-        console.log("Unauthenticated user, returning sample tournament data");
-        return fallbackTournament;
-      }
+      return fallbackTournament;
     }
     
     // For authenticated users, check Supabase
@@ -353,8 +353,15 @@ export const loadTournament = async (): Promise<Tournament> => {
         if (data && data.data) {
           console.log("Found tournament data in Supabase");
           const tournament = ensureTournamentStructure(jsonToTournament(data.data));
+          // Important: Always save to localStorage to ensure sync between auth states
           localStorage.setItem('tournament', JSON.stringify(tournament));
           return tournament;
+        } else {
+          // No data in Supabase, try localStorage again
+          const localData = localStorage.getItem('tournament');
+          if (localData) {
+            return ensureTournamentStructure(JSON.parse(localData));
+          }
         }
       }
     } catch (supabaseError) {
@@ -507,6 +514,72 @@ export const initializeTournament = (): Tournament => {
   
   // Add the sample poule to the first discipline and level
   disciplines[0].levels[0].poules = [samplePoule];
+  
+  // Add a unique public demo poule that's accessible for all users
+  const demoTeams: Team[] = [
+    {
+      id: "demo-team1",
+      players: [
+        { id: "demo-p1", name: "John" },
+        { id: "demo-p2", name: "Emma" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team2",
+      players: [
+        { id: "demo-p3", name: "Michael" },
+        { id: "demo-p4", name: "Sophie" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team3",
+      players: [
+        { id: "demo-p5", name: "David" },
+        { id: "demo-p6", name: "Lisa" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team4",
+      players: [
+        { id: "demo-p7", name: "Thomas" },
+        { id: "demo-p8", name: "Anna" }
+      ] as [Player, Player]
+    }
+  ];
+  
+  const demoPoule: Poule = {
+    id: "u7glqenmz",  // Using the ID from the error message
+    name: "Demo Poule",
+    teams: demoTeams,
+    matches: []
+  };
+  
+  // Generate matches for the demo poule
+  demoPoule.matches = generateMatches(demoPoule);
+  
+  // Add some completed matches to make it look realistic
+  if (demoPoule.matches.length > 0) {
+    // Complete the first match
+    demoPoule.matches[0].completed = true;
+    demoPoule.matches[0].sets = [
+      { scoreA: 21, scoreB: 19 },
+      { scoreA: 19, scoreB: 21 },
+      { scoreA: 21, scoreB: 15 }
+    ];
+    
+    // Complete the second match if it exists
+    if (demoPoule.matches.length > 1) {
+      demoPoule.matches[1].completed = true;
+      demoPoule.matches[1].sets = [
+        { scoreA: 21, scoreB: 15 },
+        { scoreA: 21, scoreB: 18 },
+        { scoreA: 0, scoreB: 0 }
+      ];
+    }
+  }
+  
+  // Add the demo poule to the gemengd dubbel discipline, level 3
+  disciplines[2].levels[2].poules.push(demoPoule);
 
   // Add admin credentials if they don't exist
   if (!localStorage.getItem('adminCredentials')) {
