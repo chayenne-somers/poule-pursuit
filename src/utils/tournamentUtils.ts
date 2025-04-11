@@ -217,13 +217,13 @@ export const isMatchComplete = (match: Match): boolean => {
   return setsWonA >= 2 || setsWonB >= 2;
 };
 
-// Convert Tournament to Json
+// Convert Tournament to Json - fix the type casting
 const tournamentToJson = (tournament: Tournament): Json => {
   return tournament as unknown as Json;
 };
 
-// Convert Json to Tournament
-const jsonToTournament = (json: Json): Json => {
+// Convert Json to Tournament - fix the return type
+const jsonToTournament = (json: Json): Tournament => {
   return json as unknown as Tournament;
 };
 
