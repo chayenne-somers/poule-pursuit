@@ -707,7 +707,7 @@ export const initializeTournament = (): Tournament => {
       { id: `${discipline.id}_l1`, name: "1", poules: [] },
       { id: `${discipline.id}_l2`, name: "2", poules: [] },
       { id: `${discipline.id}_l3`, name: "3", poules: [] },
-      { id: `${discipline.id}_l4", name: "4", poules: [] },
+      { id: `${discipline.id}_l4`, name: "4", poules: [] },
       { id: `${discipline.id}_l5`, name: "4+", poules: [] }
     ];
   });
@@ -849,4 +849,4 @@ export const initializeTournament = (): Tournament => {
   
   // Complete some matches in the second demo poule
   if (demoPoule2.matches.length > 0) {
-    demoPoule2.matches[0].completed = true
+    demoPoule2.matches[0].
