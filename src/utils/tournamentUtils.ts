@@ -470,31 +470,31 @@ export const initializeTournament = (): Tournament => {
   });
 
   // Add a sample poule with teams and matches to the first discipline and level
-  const sampleTeams = [
+  const sampleTeams: Team[] = [
     {
       id: "team1",
       players: [
         { id: "p1", name: "Alice" },
         { id: "p2", name: "Bob" }
-      ]
+      ] as [Player, Player] // Type assertion to ensure it matches the [Player, Player] tuple
     },
     {
       id: "team2",
       players: [
         { id: "p3", name: "Charlie" },
         { id: "p4", name: "Diana" }
-      ]
+      ] as [Player, Player]
     },
     {
       id: "team3",
       players: [
         { id: "p5", name: "Eve" },
         { id: "p6", name: "Frank" }
-      ]
+      ] as [Player, Player]
     }
   ];
   
-  const samplePoule = {
+  const samplePoule: Poule = {
     id: "sample-poule-123",
     name: "A",
     teams: sampleTeams,
