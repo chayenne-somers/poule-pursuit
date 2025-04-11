@@ -1,4 +1,5 @@
-import { Match, Poule, Team, SetScore, Tournament } from "../types/tournament";
+
+import { Match, Poule, Team, SetScore, Tournament, Player } from "../types/tournament";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Json } from "@/integrations/supabase/types";
