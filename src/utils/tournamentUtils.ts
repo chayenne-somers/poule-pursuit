@@ -327,8 +327,9 @@ export const loadTournament = async (): Promise<Tournament> => {
     } else {
       console.log("No tournament data in localStorage, initializing sample data");
       // If no localStorage data, initialize sample data for all users
-      localStorage.setItem('tournament', JSON.stringify(fallbackTournament));
-      return fallbackTournament;
+      const newTournament = fallbackTournament;
+      localStorage.setItem('tournament', JSON.stringify(newTournament));
+      return newTournament;
     }
     
     // For authenticated users, check Supabase
@@ -515,8 +516,9 @@ export const initializeTournament = (): Tournament => {
   // Add the sample poule to the first discipline and level
   disciplines[0].levels[0].poules = [samplePoule];
   
-  // Add a unique public demo poule that's accessible for all users
-  const demoTeams: Team[] = [
+  // Add public demo poules that are accessible for all users
+  // Public demo poule 1 - for testing direct access
+  const demoTeams1: Team[] = [
     {
       id: "demo-team1",
       players: [
@@ -547,30 +549,28 @@ export const initializeTournament = (): Tournament => {
     }
   ];
   
-  const demoPoule: Poule = {
-    id: "u7glqenmz",  // Using the ID from the error message
-    name: "Demo Poule",
-    teams: demoTeams,
+  const demoPoule1: Poule = {
+    id: "u7glqenmz",  // Keep the same ID for consistency
+    name: "Demo Poule A",
+    teams: demoTeams1,
     matches: []
   };
   
   // Generate matches for the demo poule
-  demoPoule.matches = generateMatches(demoPoule);
+  demoPoule1.matches = generateMatches(demoPoule1);
   
-  // Add some completed matches to make it look realistic
-  if (demoPoule.matches.length > 0) {
-    // Complete the first match
-    demoPoule.matches[0].completed = true;
-    demoPoule.matches[0].sets = [
+  // Complete some matches to make it look realistic
+  if (demoPoule1.matches.length > 0) {
+    demoPoule1.matches[0].completed = true;
+    demoPoule1.matches[0].sets = [
       { scoreA: 21, scoreB: 19 },
       { scoreA: 19, scoreB: 21 },
       { scoreA: 21, scoreB: 15 }
     ];
     
-    // Complete the second match if it exists
-    if (demoPoule.matches.length > 1) {
-      demoPoule.matches[1].completed = true;
-      demoPoule.matches[1].sets = [
+    if (demoPoule1.matches.length > 1) {
+      demoPoule1.matches[1].completed = true;
+      demoPoule1.matches[1].sets = [
         { scoreA: 21, scoreB: 15 },
         { scoreA: 21, scoreB: 18 },
         { scoreA: 0, scoreB: 0 }
@@ -578,8 +578,54 @@ export const initializeTournament = (): Tournament => {
     }
   }
   
-  // Add the demo poule to the gemengd dubbel discipline, level 3
-  disciplines[2].levels[2].poules.push(demoPoule);
+  // Add another public demo poule with a different ID
+  const demoTeams2: Team[] = [
+    {
+      id: "demo-team5",
+      players: [
+        { id: "demo-p9", name: "William" },
+        { id: "demo-p10", name: "Olivia" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team6",
+      players: [
+        { id: "demo-p11", name: "James" },
+        { id: "demo-p12", name: "Sophia" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team7",
+      players: [
+        { id: "demo-p13", name: "Benjamin" },
+        { id: "demo-p14", name: "Isabella" }
+      ] as [Player, Player]
+    }
+  ];
+  
+  const demoPoule2: Poule = {
+    id: "cp68esd4k",  // Add the poule ID from the current route
+    name: "Demo Poule B",
+    teams: demoTeams2,
+    matches: []
+  };
+  
+  // Generate matches for the second demo poule
+  demoPoule2.matches = generateMatches(demoPoule2);
+  
+  // Complete some matches in the second demo poule
+  if (demoPoule2.matches.length > 0) {
+    demoPoule2.matches[0].completed = true;
+    demoPoule2.matches[0].sets = [
+      { scoreA: 21, scoreB: 17 },
+      { scoreA: 21, scoreB: 14 },
+      { scoreA: 0, scoreB: 0 }
+    ];
+  }
+  
+  // Add both demo poules to different disciplines/levels for variety
+  disciplines[2].levels[2].poules.push(demoPoule1); // First demo poule in Gemengd dubbel level 3
+  disciplines[1].levels[1].poules.push(demoPoule2); // Second demo poule in Heren dubbel level 2
 
   // Add admin credentials if they don't exist
   if (!localStorage.getItem('adminCredentials')) {

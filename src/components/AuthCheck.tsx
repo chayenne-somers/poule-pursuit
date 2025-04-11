@@ -39,6 +39,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     });
   }, [user, location.pathname]);
 
+  // Special case: always show loading indicator for poule routes until auth check completes
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
