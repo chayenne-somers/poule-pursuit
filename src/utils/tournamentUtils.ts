@@ -86,6 +86,35 @@ export const didTeamWinSet = (set: SetScore, isTeamA: boolean): boolean => {
     : set.scoreB! > set.scoreA!;
 };
 
+// Get number of sets won by each team in a match
+export const getSetsWon = (match: Match): { setsWonA: number, setsWonB: number } => {
+  let setsWonA = 0;
+  let setsWonB = 0;
+  
+  match.sets.forEach(set => {
+    if (isSetComplete(set)) {
+      if (set.scoreA! > set.scoreB!) {
+        setsWonA++;
+      } else if (set.scoreB! > set.scoreA!) {
+        setsWonB++;
+      }
+    }
+  });
+  
+  return { setsWonA, setsWonB };
+};
+
+// Determine if a team won the match
+export const didTeamWinMatch = (match: Match, isTeamA: boolean): boolean => {
+  if (!match.completed) return false;
+  
+  const { setsWonA, setsWonB } = getSetsWon(match);
+  
+  return isTeamA 
+    ? setsWonA > setsWonB 
+    : setsWonB > setsWonA;
+};
+
 // Calculate team standings in a poule
 export interface TeamStanding {
   team: Team;
@@ -520,6 +549,49 @@ const getDemoPoules = (): Poule[] => {
     ];
   }
   
+  // Create a third demo poule
+  const demoPoule3: Poule = {
+    id: "lmum3nc2n",  // Add the poule ID for the third demo poule
+    name: "Demo Poule C",
+    teams: [
+      {
+        id: "demo-team8",
+        players: [
+          { id: "demo-p15", name: "Robert" },
+          { id: "demo-p16", name: "Emily" }
+        ] as [Player, Player]
+      },
+      {
+        id: "demo-team9",
+        players: [
+          { id: "demo-p17", name: "Jacob" },
+          { id: "demo-p18", name: "Ava" }
+        ] as [Player, Player]
+      },
+      {
+        id: "demo-team10",
+        players: [
+          { id: "demo-p19", name: "Daniel" },
+          { id: "demo-p20", name: "Mia" }
+        ] as [Player, Player]
+      }
+    ],
+    matches: []
+  };
+  
+  // Generate matches for the third demo poule
+  demoPoule3.matches = generateMatches(demoPoule3);
+  
+  // Complete some matches in the third demo poule
+  if (demoPoule3.matches.length > 0) {
+    demoPoule3.matches[0].completed = true;
+    demoPoule3.matches[0].sets = [
+      { scoreA: 19, scoreB: 21 },
+      { scoreA: 21, scoreB: 18 },
+      { scoreA: 21, scoreB: 15 }
+    ];
+  }
+  
   return [demoPoule1, demoPoule2, demoPoule3];
 };
 
@@ -707,112 +779,5 @@ export const initializeTournament = (): Tournament => {
   // Add the sample poule to the first discipline and level
   disciplines[0].levels[0].poules = [samplePoule];
   
-  // Add public demo poules that are accessible for all users
-  // Public demo poule 1 - for testing direct access
-  const demoTeams1: Team[] = [
-    {
-      id: "demo-team1",
-      players: [
-        { id: "demo-p1", name: "John" },
-        { id: "demo-p2", name: "Emma" }
-      ] as [Player, Player]
-    },
-    {
-      id: "demo-team2",
-      players: [
-        { id: "demo-p3", name: "Michael" },
-        { id: "demo-p4", name: "Sophie" }
-      ] as [Player, Player]
-    },
-    {
-      id: "demo-team3",
-      players: [
-        { id: "demo-p5", name: "David" },
-        { id: "demo-p6", name: "Lisa" }
-      ] as [Player, Player]
-    },
-    {
-      id: "demo-team4",
-      players: [
-        { id: "demo-p7", name: "Thomas" },
-        { id: "demo-p8", name: "Anna" }
-      ] as [Player, Player]
-    }
-  ];
-  
-  const demoPoule1: Poule = {
-    id: "u7glqenmz",  // Keep the same ID for consistency
-    name: "Demo Poule A",
-    teams: demoTeams1,
-    matches: []
-  };
-  
-  // Generate matches for the demo poule
-  demoPoule1.matches = generateMatches(demoPoule1);
-  
-  // Complete some matches to make it look realistic
-  if (demoPoule1.matches.length > 0) {
-    demoPoule1.matches[0].completed = true;
-    demoPoule1.matches[0].sets = [
-      { scoreA: 21, scoreB: 19 },
-      { scoreA: 19, scoreB: 21 },
-      { scoreA: 21, scoreB: 15 }
-    ];
-    
-    if (demoPoule1.matches.length > 1) {
-      demoPoule1.matches[1].completed = true;
-      demoPoule1.matches[1].sets = [
-        { scoreA: 21, scoreB: 15 },
-        { scoreA: 21, scoreB: 18 },
-        { scoreA: 0, scoreB: 0 }
-      ];
-    }
-  }
-  
-  // Add another public demo poule with a different ID
-  const demoTeams2: Team[] = [
-    {
-      id: "demo-team5",
-      players: [
-        { id: "demo-p9", name: "William" },
-        { id: "demo-p10", name: "Olivia" }
-      ] as [Player, Player]
-    },
-    {
-      id: "demo-team6",
-      players: [
-        { id: "demo-p11", name: "James" },
-        { id: "demo-p12", name: "Sophia" }
-      ] as [Player, Player]
-    },
-    {
-      id: "demo-team7",
-      players: [
-        { id: "demo-p13", name: "Benjamin" },
-        { id: "demo-p14", name: "Isabella" }
-      ] as [Player, Player]
-    }
-  ];
-  
-  const demoPoule2: Poule = {
-    id: "cp68esd4k",  // Add the poule ID from the current route
-    name: "Demo Poule B",
-    teams: demoTeams2,
-    matches: []
-  };
-  
-  // Generate matches for the second demo poule
-  demoPoule2.matches = generateMatches(demoPoule2);
-  
-  // Complete some matches in the second demo poule
-  if (demoPoule2.matches.length > 0) {
-    demoPoule2.matches[0].completed = true;
-    demoPoule2.matches[0].sets = [
-      { scoreA: 21, scoreB: 17 },
-      { scoreA: 21, scoreB: 14 },
-      { scoreA: 0, scoreB: 0 }
-    ];
-  }
-  
-  return [demoPoule1, demoPoule2, demoPoule3];
+  return { disciplines };
 };
