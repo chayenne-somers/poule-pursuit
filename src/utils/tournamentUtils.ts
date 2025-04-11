@@ -223,7 +223,7 @@ const tournamentToJson = (tournament: Tournament): Json => {
 };
 
 // Convert Json to Tournament
-const jsonToTournament = (json: Json): Tournament => {
+const jsonToTournament = (json: Json): Json => {
   return json as unknown as Tournament;
 };
 
