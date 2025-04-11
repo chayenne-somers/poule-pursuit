@@ -39,7 +39,10 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     });
   }, [user, location.pathname]);
 
-  // Special case: always show loading indicator for poule routes until auth check completes
+  // Always check if this is a poule route first, before checking authentication
+  const isPouleRoute = location.pathname.startsWith('/poule/');
+  
+  // Special case: always show loading indicator until auth check completes
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -53,7 +56,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
   }
 
   // Poule pages are accessible without authentication
-  if (location.pathname.startsWith('/poule/')) {
+  if (isPouleRoute) {
     return children ? <>{children}</> : <Outlet />;
   }
 

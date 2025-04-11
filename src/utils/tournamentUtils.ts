@@ -316,7 +316,13 @@ export const loadTournament = async (): Promise<Tournament> => {
         const { data: session } = await supabase.auth.getSession();
         if (!session.session) {
           console.log("Unauthenticated user, using localStorage tournament data");
-          return ensureTournamentStructure(parsedData);
+          const tournamentData = ensureTournamentStructure(parsedData);
+          
+          // Ensure the demo poules are always included for unauthenticated users
+          const demoPoules = getDemoPoules();
+          const mergedTournament = mergeDemoPoules(tournamentData, demoPoules);
+          
+          return mergedTournament;
         }
         
         // For authenticated users, continue checking for Supabase data
@@ -371,10 +377,23 @@ export const loadTournament = async (): Promise<Tournament> => {
     }
     
     // If we reach here, we'll use what's in localStorage (which might be sample data)
+    // or merge with demo poules if user is not authenticated
     const finalLocalData = localStorage.getItem('tournament');
     if (finalLocalData) {
       try {
-        return ensureTournamentStructure(JSON.parse(finalLocalData));
+        const parsedData = JSON.parse(finalLocalData);
+        const tournamentData = ensureTournamentStructure(parsedData);
+        
+        // Check if user is authenticated
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session) {
+          // For unauthenticated users, ensure demo poules are included
+          const demoPoules = getDemoPoules();
+          const mergedTournament = mergeDemoPoules(tournamentData, demoPoules);
+          return mergedTournament;
+        }
+        
+        return tournamentData;
       } catch (e) {
         console.error("Error parsing final localStorage data:", e);
       }
@@ -390,6 +409,221 @@ export const loadTournament = async (): Promise<Tournament> => {
     localStorage.setItem('tournament', JSON.stringify(newTournament));
     return newTournament;
   }
+};
+
+// Helper function to get demo poules that are always accessible for unauthenticated users
+const getDemoPoules = (): Poule[] => {
+  // Create demo poules with fixed IDs for direct access
+  // Demo poule 1
+  const demoTeams1: Team[] = [
+    {
+      id: "demo-team1",
+      players: [
+        { id: "demo-p1", name: "John" },
+        { id: "demo-p2", name: "Emma" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team2",
+      players: [
+        { id: "demo-p3", name: "Michael" },
+        { id: "demo-p4", name: "Sophie" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team3",
+      players: [
+        { id: "demo-p5", name: "David" },
+        { id: "demo-p6", name: "Lisa" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team4",
+      players: [
+        { id: "demo-p7", name: "Thomas" },
+        { id: "demo-p8", name: "Anna" }
+      ] as [Player, Player]
+    }
+  ];
+  
+  const demoPoule1: Poule = {
+    id: "u7glqenmz",  // Fixed ID for the first demo poule
+    name: "Demo Poule A",
+    teams: demoTeams1,
+    matches: []
+  };
+  
+  // Generate matches for the demo poule
+  demoPoule1.matches = generateMatches(demoPoule1);
+  
+  // Complete some matches to make it look realistic
+  if (demoPoule1.matches.length > 0) {
+    demoPoule1.matches[0].completed = true;
+    demoPoule1.matches[0].sets = [
+      { scoreA: 21, scoreB: 19 },
+      { scoreA: 19, scoreB: 21 },
+      { scoreA: 21, scoreB: 15 }
+    ];
+    
+    if (demoPoule1.matches.length > 1) {
+      demoPoule1.matches[1].completed = true;
+      demoPoule1.matches[1].sets = [
+        { scoreA: 21, scoreB: 15 },
+        { scoreA: 21, scoreB: 18 },
+        { scoreA: 0, scoreB: 0 }
+      ];
+    }
+  }
+  
+  // Demo poule 2
+  const demoTeams2: Team[] = [
+    {
+      id: "demo-team5",
+      players: [
+        { id: "demo-p9", name: "William" },
+        { id: "demo-p10", name: "Olivia" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team6",
+      players: [
+        { id: "demo-p11", name: "James" },
+        { id: "demo-p12", name: "Sophia" }
+      ] as [Player, Player]
+    },
+    {
+      id: "demo-team7",
+      players: [
+        { id: "demo-p13", name: "Benjamin" },
+        { id: "demo-p14", name: "Isabella" }
+      ] as [Player, Player]
+    }
+  ];
+  
+  const demoPoule2: Poule = {
+    id: "cp68esd4k",  // Fixed ID for the second demo poule
+    name: "Demo Poule B",
+    teams: demoTeams2,
+    matches: []
+  };
+  
+  // Generate matches for the second demo poule
+  demoPoule2.matches = generateMatches(demoPoule2);
+  
+  // Complete some matches in the second demo poule
+  if (demoPoule2.matches.length > 0) {
+    demoPoule2.matches[0].completed = true;
+    demoPoule2.matches[0].sets = [
+      { scoreA: 21, scoreB: 17 },
+      { scoreA: 21, scoreB: 14 },
+      { scoreA: 0, scoreB: 0 }
+    ];
+  }
+  
+  // Add also the current poule ID if it exists
+  const demoPoule3: Poule = {
+    id: "lmum3nc2n",  // Add the poule ID from the current route
+    name: "Demo Poule C",
+    teams: [
+      {
+        id: "demo-team8",
+        players: [
+          { id: "demo-p15", name: "Robert" },
+          { id: "demo-p16", name: "Emily" }
+        ] as [Player, Player]
+      },
+      {
+        id: "demo-team9",
+        players: [
+          { id: "demo-p17", name: "Jacob" },
+          { id: "demo-p18", name: "Ava" }
+        ] as [Player, Player]
+      },
+      {
+        id: "demo-team10",
+        players: [
+          { id: "demo-p19", name: "Daniel" },
+          { id: "demo-p20", name: "Mia" }
+        ] as [Player, Player]
+      }
+    ],
+    matches: []
+  };
+  
+  // Generate matches for the third demo poule
+  demoPoule3.matches = generateMatches(demoPoule3);
+  
+  // Complete some matches in the third demo poule
+  if (demoPoule3.matches.length > 0) {
+    demoPoule3.matches[0].completed = true;
+    demoPoule3.matches[0].sets = [
+      { scoreA: 19, scoreB: 21 },
+      { scoreA: 21, scoreB: 18 },
+      { scoreA: 21, scoreB: 15 }
+    ];
+  }
+  
+  return [demoPoule1, demoPoule2, demoPoule3];
+};
+
+// Helper function to merge demo poules into a tournament
+const mergeDemoPoules = (tournament: Tournament, demoPoules: Poule[]): Tournament => {
+  const mergedTournament = { ...tournament };
+  
+  // Ensure we have at least one discipline
+  if (!mergedTournament.disciplines || mergedTournament.disciplines.length === 0) {
+    mergedTournament.disciplines = [
+      { id: "demo-discipline", name: "Demo Discipline", levels: [] }
+    ];
+  }
+  
+  // Add demo poules to different disciplines/levels
+  if (mergedTournament.disciplines.length >= 3) {
+    // If we have 3 or more disciplines, distribute demo poules
+    if (demoPoules.length > 0 && mergedTournament.disciplines[0].levels.length > 0) {
+      // Add first demo poule to first discipline, first level
+      const firstLevel = mergedTournament.disciplines[0].levels[0];
+      if (!firstLevel.poules.some(p => p.id === demoPoules[0].id)) {
+        firstLevel.poules.push(demoPoules[0]);
+      }
+    }
+    
+    if (demoPoules.length > 1 && mergedTournament.disciplines[1].levels.length > 0) {
+      // Add second demo poule to second discipline, first level
+      const secondLevel = mergedTournament.disciplines[1].levels[0];
+      if (!secondLevel.poules.some(p => p.id === demoPoules[1].id)) {
+        secondLevel.poules.push(demoPoules[1]);
+      }
+    }
+    
+    if (demoPoules.length > 2 && mergedTournament.disciplines[2].levels.length > 0) {
+      // Add third demo poule to third discipline, first level
+      const thirdLevel = mergedTournament.disciplines[2].levels[0];
+      if (!thirdLevel.poules.some(p => p.id === demoPoules[2].id)) {
+        thirdLevel.poules.push(demoPoules[2]);
+      }
+    }
+  } else {
+    // If we have fewer disciplines, add all demo poules to the first discipline
+    const firstDiscipline = mergedTournament.disciplines[0];
+    
+    // Ensure we have at least one level
+    if (!firstDiscipline.levels || firstDiscipline.levels.length === 0) {
+      firstDiscipline.levels = [
+        { id: "demo-level", name: "Demo Level", poules: [] }
+      ];
+    }
+    
+    // Add all demo poules to the first level
+    const firstLevel = firstDiscipline.levels[0];
+    demoPoules.forEach(poule => {
+      if (!firstLevel.poules.some(p => p.id === poule.id)) {
+        firstLevel.poules.push(poule);
+      }
+    });
+  }
+  
+  return mergedTournament;
 };
 
 // Ensure safe tournament loading with proper defaults
@@ -473,7 +707,7 @@ export const initializeTournament = (): Tournament => {
       { id: `${discipline.id}_l1`, name: "1", poules: [] },
       { id: `${discipline.id}_l2`, name: "2", poules: [] },
       { id: `${discipline.id}_l3`, name: "3", poules: [] },
-      { id: `${discipline.id}_l4`, name: "4", poules: [] },
+      { id: `${discipline.id}_l4", name: "4", poules: [] },
       { id: `${discipline.id}_l5`, name: "4+", poules: [] }
     ];
   });
@@ -615,49 +849,4 @@ export const initializeTournament = (): Tournament => {
   
   // Complete some matches in the second demo poule
   if (demoPoule2.matches.length > 0) {
-    demoPoule2.matches[0].completed = true;
-    demoPoule2.matches[0].sets = [
-      { scoreA: 21, scoreB: 17 },
-      { scoreA: 21, scoreB: 14 },
-      { scoreA: 0, scoreB: 0 }
-    ];
-  }
-  
-  // Add both demo poules to different disciplines/levels for variety
-  disciplines[2].levels[2].poules.push(demoPoule1); // First demo poule in Gemengd dubbel level 3
-  disciplines[1].levels[1].poules.push(demoPoule2); // Second demo poule in Heren dubbel level 2
-
-  // Add admin credentials if they don't exist
-  if (!localStorage.getItem('adminCredentials')) {
-    saveAdminCredentials('admin', 'admin123');
-  }
-  
-  // Create tournament object
-  const tournament: Tournament = { disciplines };
-  
-  return tournament;
-};
-
-// Get the number of sets won by each team in a match
-export const getSetsWon = (match: Match) => {
-  let setsWonA = 0;
-  let setsWonB = 0;
-  
-  match.sets.forEach(set => {
-    if (isSetComplete(set)) {
-      if (set.scoreA! > set.scoreB!) {
-        setsWonA++;
-      } else if (set.scoreB! > set.scoreA!) {
-        setsWonB++;
-      }
-    }
-  });
-  
-  return { setsWonA, setsWonB };
-};
-
-// Check if a team won a match (won 2 or more sets)
-export const didTeamWinMatch = (match: Match, isTeamA: boolean) => {
-  const { setsWonA, setsWonB } = getSetsWon(match);
-  return isTeamA ? setsWonA >= 2 : setsWonB >= 2;
-};
+    demoPoule2.matches[0].completed = true
