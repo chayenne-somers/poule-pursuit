@@ -520,49 +520,6 @@ const getDemoPoules = (): Poule[] => {
     ];
   }
   
-  // Add also the current poule ID if it exists
-  const demoPoule3: Poule = {
-    id: "lmum3nc2n",  // Add the poule ID from the current route
-    name: "Demo Poule C",
-    teams: [
-      {
-        id: "demo-team8",
-        players: [
-          { id: "demo-p15", name: "Robert" },
-          { id: "demo-p16", name: "Emily" }
-        ] as [Player, Player]
-      },
-      {
-        id: "demo-team9",
-        players: [
-          { id: "demo-p17", name: "Jacob" },
-          { id: "demo-p18", name: "Ava" }
-        ] as [Player, Player]
-      },
-      {
-        id: "demo-team10",
-        players: [
-          { id: "demo-p19", name: "Daniel" },
-          { id: "demo-p20", name: "Mia" }
-        ] as [Player, Player]
-      }
-    ],
-    matches: []
-  };
-  
-  // Generate matches for the third demo poule
-  demoPoule3.matches = generateMatches(demoPoule3);
-  
-  // Complete some matches in the third demo poule
-  if (demoPoule3.matches.length > 0) {
-    demoPoule3.matches[0].completed = true;
-    demoPoule3.matches[0].sets = [
-      { scoreA: 19, scoreB: 21 },
-      { scoreA: 21, scoreB: 18 },
-      { scoreA: 21, scoreB: 15 }
-    ];
-  }
-  
   return [demoPoule1, demoPoule2, demoPoule3];
 };
 
@@ -849,4 +806,13 @@ export const initializeTournament = (): Tournament => {
   
   // Complete some matches in the second demo poule
   if (demoPoule2.matches.length > 0) {
-    demoPoule2.matches[0].completed = true
+    demoPoule2.matches[0].completed = true;
+    demoPoule2.matches[0].sets = [
+      { scoreA: 21, scoreB: 17 },
+      { scoreA: 21, scoreB: 14 },
+      { scoreA: 0, scoreB: 0 }
+    ];
+  }
+  
+  return [demoPoule1, demoPoule2, demoPoule3];
+};
