@@ -54,6 +54,17 @@ export interface Tournament {
   disciplines: Discipline[];
 }
 
+// Team standing type for leaderboards
+export interface TeamStanding {
+  team: Team;
+  played: number;
+  matchesWon: number;
+  setsWon: number;
+  setsLost: number;
+  setSaldo: number;
+  pointsScored: number;
+}
+
 // User type for authentication
 export interface User {
   id: string;

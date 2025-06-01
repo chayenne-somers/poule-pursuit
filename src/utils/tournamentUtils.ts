@@ -1,5 +1,11 @@
 import { Match, Poule, SetScore, Team, TeamStanding, Tournament } from '@/types/tournament';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/integrations/supabase/client';
+
+// Export the generateId function
+export const generateId = (): string => {
+  return uuidv4();
+};
 
 // Function to initialize a new tournament with sample data
 export const initializeTournament = (): Tournament => {
@@ -40,6 +46,69 @@ export const initializeTournament = (): Tournament => {
       },
     ],
   };
+};
+
+// Function to generate matches for a poule (round-robin format)
+export const generateMatches = (poule: Poule): Match[] => {
+  const teams = poule.teams;
+  const matches: Match[] = [];
+  let order = 1;
+
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      matches.push({
+        id: uuidv4(),
+        teamA: teams[i],
+        teamB: teams[j],
+        sets: [{}, {}, {}],
+        completed: false,
+        order: order++,
+      });
+    }
+  }
+
+  return matches;
+};
+
+// Admin credential functions
+export const checkAdminCredentials = (username: string, password: string): boolean => {
+  // Simple demo credentials - in production, this should be more secure
+  return username === 'admin' && password === 'admin123';
+};
+
+export const saveAdminCredentials = (username: string, password: string): void => {
+  // In a real app, this would save to a secure backend
+  localStorage.setItem('adminCredentials', JSON.stringify({ username, password }));
+};
+
+// Function to add a poule to a tournament structure
+export const addPouleToTournament = (tournament: Tournament, poule: Poule): Tournament => {
+  const updatedTournament: Tournament = { ...tournament };
+
+  // Ensure we have at least one discipline
+  if (!updatedTournament.disciplines || updatedTournament.disciplines.length === 0) {
+    updatedTournament.disciplines = [
+      { id: generateId(), name: "Demo Discipline", levels: [] }
+    ];
+  }
+
+  // Add to first discipline, first level
+  const firstDiscipline = updatedTournament.disciplines[0];
+
+  // Ensure we have at least one level
+  if (!firstDiscipline.levels || firstDiscipline.levels.length === 0) {
+    firstDiscipline.levels = [
+      { id: generateId(), name: "Demo Level", poules: [] }
+    ];
+  }
+
+  // Add the poule to the first level if it doesn't exist already
+  const firstLevel = firstDiscipline.levels[0];
+  if (!firstLevel.poules.some(p => p.id === poule.id)) {
+    firstLevel.poules.push(poule);
+  }
+
+  return updatedTournament;
 };
 
 // Function to convert JSON data to a Tournament object
@@ -396,7 +465,11 @@ export const saveTournament = async (tournament: Tournament): Promise<void> => {
       const { data, error } = await supabase
         .from('tournaments')
         .upsert([
-          { user_id: user_id, data: tournamentData }
+          { 
+            user_id: user_id, 
+            data: tournamentData,
+            name: 'Tournament' // Add required name field
+          }
         ], { onConflict: 'user_id' });
 
       if (error) {
@@ -624,5 +697,3 @@ const mergeDemoPoules = (tournament: Tournament, demoPoules: Poule[]): Tournamen
 
   return updatedTournament;
 };
-
-import { supabase } from '@/integrations/supabase/client';
