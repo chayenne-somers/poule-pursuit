@@ -118,7 +118,7 @@ const Admin = () => {
 
   useEffect(() => {
     const storedAuth = localStorage.getItem('adminAuth');
-    setIsLoggedIn(!!storedAuth);
+    
   }, []);
 
   // Reset form state when dialog opens/closes
