@@ -1,16 +1,17 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminForm from '@/components/AdminForm';
 import TournamentStructure from '@/components/TournamentStructure';
 import { Tournament, Discipline, Level, Poule, Team } from '@/types/tournament';
-import { loadTournamentData, saveTournamentData } from '@/utils/tournamentUtils';
+import { loadTournament, saveTournament } from '@/utils/tournamentUtils';
 import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, Settings, Users } from 'lucide-react';
 import TeamsViewDialog from '@/components/TeamsViewDialog';
 
 const Admin = () => {
-  const [tournament, setTournament] = useState<Tournament>(loadTournamentData());
+  const [tournament, setTournament] = useState<Tournament>(loadTournament());
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formType, setFormType] = useState<'discipline' | 'level' | 'poule' | 'team'>('discipline');
@@ -36,8 +37,8 @@ const Admin = () => {
       reader.onload = (e) => {
         try {
           const uploadedData = JSON.parse(e.target?.result as string);
-          setTournament(uploadedData);
-          saveTournamentData(uploadedData);
+          setTournament(updatedData);
+          saveTournament(uploadedData);
           toast({
             title: "Data imported successfully",
             description: "Tournament data has been loaded from file",
@@ -97,7 +98,7 @@ const Admin = () => {
     }
     
     setTournament(updatedTournament);
-    saveTournamentData(updatedTournament);
+    saveTournament(updatedTournament);
     
     toast({
       title: `${type.charAt(0).toUpperCase() + type.slice(1)} deleted`,
@@ -170,7 +171,7 @@ const Admin = () => {
     }
     
     setTournament(updatedTournament);
-    saveTournamentData(updatedTournament);
+    saveTournament(updatedTournament);
     setShowForm(false);
     setEditingItem(null);
     
@@ -281,7 +282,7 @@ const Admin = () => {
           </CardHeader>
           <CardContent>
             <TournamentStructure 
-              tournament={tournament}
+              disciplines={tournament.disciplines}
               isAdmin={true}
               onEditItem={handleEditItem}
               onDeleteItem={handleDeleteItem}
@@ -293,27 +294,27 @@ const Admin = () => {
 
       {showForm && (
         <AdminForm
-          isOpen={showForm}
-          onClose={() => {
-            setShowForm(false);
-            setEditingItem(null);
+          onDataChange={() => {
+            setTournament(loadTournament());
           }}
-          onSubmit={handleFormSubmit}
-          type={formType}
-          editingItem={editingItem}
-          disciplines={tournament.disciplines}
-          parentId={parentId}
         />
       )}
 
       <TeamsViewDialog
-        isOpen={showTeamsDialog}
-        onClose={() => setShowTeamsDialog(false)}
-        pouleId={selectedPouleForTeams}
-        tournament={tournament}
-        onUpdateTournament={(updatedTournament) => {
-          setTournament(updatedTournament);
-          saveTournamentData(updatedTournament);
+        open={showTeamsDialog}
+        onOpenChange={setShowTeamsDialog}
+        poule={tournament.disciplines
+          .flatMap(d => d.levels)
+          .flatMap(l => l.poules)
+          .find(p => p.id === selectedPouleForTeams) || null}
+        onEdit={(teamId) => {
+          // Handle team edit
+        }}
+        onDelete={(teamId) => {
+          // Handle team delete
+        }}
+        onRemoveAllTeams={(pouleId) => {
+          // Handle remove all teams
         }}
       />
     </div>
