@@ -13,10 +13,10 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('Auth callback triggered');
-        console.log('Current URL:', window.location.href);
-        console.log('Location search:', location.search);
-        console.log('Location hash:', location.hash);
+        console.log('AuthCallback: Processing auth callback...');
+        console.log('AuthCallback: Current URL:', window.location.href);
+        console.log('AuthCallback: Location search:', location.search);
+        console.log('AuthCallback: Location hash:', location.hash);
 
         // Extract any error message from the URL if present
         const urlParams = new URLSearchParams(location.search);
@@ -26,7 +26,7 @@ const AuthCallback = () => {
         const errorCode = urlParams.get('error') || hashParams.get('error');
         
         if (errorMessage || errorCode) {
-          console.error('Auth callback error:', { errorCode, errorMessage });
+          console.error('AuthCallback: Auth callback error:', { errorCode, errorMessage });
           setError(errorMessage || errorCode || 'Authentication error');
           toast({
             title: "Authentication error",
@@ -37,26 +37,25 @@ const AuthCallback = () => {
           return;
         }
 
-        // Handle the auth callback - this processes tokens from the URL
-        const { data, error: callbackError } = await supabase.auth.getSession();
+        // Get current session after callback processing
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        console.log('Session data:', data);
+        console.log('AuthCallback: Session check result:', !!session);
         
-        if (callbackError) {
-          console.error('Session error:', callbackError);
-          setError(callbackError.message);
+        if (sessionError) {
+          console.error('AuthCallback: Session error:', sessionError);
+          setError(sessionError.message);
           toast({
             title: "Authentication error",
-            description: callbackError.message,
+            description: sessionError.message,
             variant: "destructive"
           });
           setTimeout(() => navigate('/auth'), 3000);
           return;
         }
         
-        if (data.session) {
-          console.log('Valid session found, user authenticated');
-          // If we have a session, the user was authenticated successfully
+        if (session?.user) {
+          console.log('AuthCallback: Valid session found, user authenticated');
           toast({
             title: "Authentication successful",
             description: "Your account has been verified successfully!"
@@ -65,8 +64,7 @@ const AuthCallback = () => {
           // Navigate to home page
           navigate('/', { replace: true });
         } else {
-          console.log('No session found');
-          // No session means the verification link might be invalid/expired
+          console.log('AuthCallback: No session found after callback');
           toast({
             title: "Verification link expired",
             description: "Please try signing in again or request a new verification link",
@@ -75,7 +73,7 @@ const AuthCallback = () => {
           setTimeout(() => navigate('/auth'), 3000);
         }
       } catch (err: any) {
-        console.error("Error in auth callback:", err);
+        console.error("AuthCallback: Error in auth callback:", err);
         setError(err.message);
         toast({
           title: "Authentication error",

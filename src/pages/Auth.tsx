@@ -25,14 +25,15 @@ const Auth = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log('Auth: Checking existing session...');
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Get the intended destination or default to home
+        if (session?.user) {
+          console.log('Auth: User already authenticated, redirecting...');
           const from = location.state?.from?.pathname || '/';
           navigate(from, { replace: true });
         }
       } catch (error) {
-        console.error('Error checking auth status:', error);
+        console.error('Auth: Error checking auth status:', error);
       }
     };
     
@@ -41,14 +42,20 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password || !username || !fullName) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Get the current URL for the redirect - ensure it works in production
-      const currentUrl = new URL(window.location.href);
-      const redirectTo = `${currentUrl.origin}/auth/callback`;
-      
-      console.log('Sign up attempt with redirect:', redirectTo);
+      console.log('Auth: Attempting sign up for:', email);
       
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
@@ -57,17 +64,16 @@ const Auth = () => {
           data: {
             username: username.trim(),
             full_name: fullName.trim()
-          },
-          emailRedirectTo: redirectTo
+          }
         }
       });
 
       if (error) {
-        console.error('Sign up error:', error);
+        console.error('Auth: Sign up error:', error);
         throw error;
       }
       
-      console.log('Sign up response:', data);
+      console.log('Auth: Sign up response:', data);
       
       if (data.user && !data.session) {
         // Email confirmation required
@@ -77,6 +83,7 @@ const Auth = () => {
         });
       } else if (data.session) {
         // Immediate sign in (email confirmation disabled)
+        console.log('Auth: User signed up and logged in immediately');
         toast({
           title: "Account created successfully",
           description: "Welcome to Poule Pursuit!",
@@ -85,7 +92,7 @@ const Auth = () => {
         navigate(from, { replace: true });
       }
     } catch (error: any) {
-      console.error('Sign up error:', error);
+      console.error('Auth: Sign up error:', error);
       toast({
         title: "Error creating account",
         description: error.message || "An unexpected error occurred",
@@ -98,10 +105,20 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Missing information",
+        description: "Please enter email and password",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      console.log('Sign in attempt for:', email);
+      console.log('Auth: Attempting sign in for:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -109,24 +126,25 @@ const Auth = () => {
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('Auth: Sign in error:', error);
         throw error;
       }
       
-      console.log('Sign in successful:', data);
+      console.log('Auth: Sign in successful:', !!data.session);
       
       if (data.session) {
         toast({
           title: "Signed in successfully",
-          description: `Welcome back${data.user?.user_metadata?.username ? ', ' + data.user.user_metadata.username : ''}!`,
+          description: `Welcome back!`,
         });
         
         // Navigate to intended destination or home
         const from = location.state?.from?.pathname || '/';
+        console.log('Auth: Navigating to:', from);
         navigate(from, { replace: true });
       }
     } catch (error: any) {
-      console.error('Sign in error details:', error);
+      console.error('Auth: Sign in error details:', error);
       
       let errorMessage = "An unexpected error occurred";
       

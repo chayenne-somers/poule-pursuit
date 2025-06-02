@@ -17,19 +17,9 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
 
     const initializeAuth = async () => {
       try {
-        // First, set up the auth state listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            console.log('AuthCheck: Auth event:', event, 'Session:', !!session);
-            
-            if (mounted) {
-              setUser(session?.user || null);
-              setLoading(false);
-            }
-          }
-        );
+        console.log('AuthCheck: Initializing authentication...');
 
-        // Then check for existing session
+        // Check for existing session first
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -43,13 +33,27 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
           setLoading(false);
         }
 
+        // Set up the auth state listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          (event, session) => {
+            console.log('AuthCheck: Auth event:', event, 'Session:', !!session);
+            
+            if (mounted) {
+              setUser(session?.user || null);
+              if (loading) {
+                setLoading(false);
+              }
+            }
+          }
+        );
+
         return () => {
-          mounted = false;
           subscription.unsubscribe();
         };
       } catch (error) {
         console.error('AuthCheck: Error initializing auth:', error);
         if (mounted) {
+          setUser(null);
           setLoading(false);
         }
       }
@@ -67,6 +71,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
   useEffect(() => {
     console.log("AuthCheck: Auth state updated", { 
       user: user ? "Authenticated" : "Unauthenticated", 
+      userId: user?.id,
       path: location.pathname,
       isPouleRoute: location.pathname.startsWith('/poule/')
     });
@@ -75,7 +80,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
   // All poule routes are public
   const isPouleRoute = location.pathname.startsWith('/poule/');
   
-  // Special case: always show loading indicator until auth check completes
+  // Show loading indicator until auth check completes
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -99,6 +104,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  console.log('AuthCheck: User authenticated, showing protected content');
   return children ? <>{children}</> : <Outlet />;
 };
 

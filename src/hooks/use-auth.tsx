@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('AuthProvider: Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -37,53 +38,88 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single();
 
       if (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('AuthProvider: Error fetching user profile:', error);
         return null;
       }
 
+      console.log('AuthProvider: Profile fetched successfully');
       return data as UserProfile;
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('AuthProvider: Error fetching user profile:', error);
       return null;
     }
   };
 
   useEffect(() => {
-    // First, set up the auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        console.log('AuthProvider: Initializing auth...');
+
+        // Check for existing session first
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
         
-        if (session?.user) {
-          // Fetch user profile when user is authenticated
-          const userProfile = await fetchUserProfile(session.user.id);
-          setProfile(userProfile);
-        } else {
-          setProfile(null);
+        if (mounted) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          
+          if (initialSession?.user) {
+            const userProfile = await fetchUserProfile(initialSession.user.id);
+            if (mounted) {
+              setProfile(userProfile);
+            }
+          }
+          
+          setIsLoading(false);
         }
-        
-        setIsLoading(false);
-      }
-    );
 
-    // Then check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const userProfile = await fetchUserProfile(session.user.id);
-        setProfile(userProfile);
-      }
-      
-      setIsLoading(false);
-    });
+        // Set up the auth state listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log('AuthProvider: Auth state change:', event, !!session);
+            
+            if (mounted) {
+              setSession(session);
+              setUser(session?.user ?? null);
+              
+              if (session?.user) {
+                const userProfile = await fetchUserProfile(session.user.id);
+                if (mounted) {
+                  setProfile(userProfile);
+                }
+              } else {
+                setProfile(null);
+              }
+              
+              if (isLoading) {
+                setIsLoading(false);
+              }
+            }
+          }
+        );
 
-    return () => subscription.unsubscribe();
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('AuthProvider: Error initializing auth:', error);
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const cleanup = initAuth();
+
+    return () => {
+      mounted = false;
+      cleanup.then(fn => fn && fn());
+    };
   }, []);
 
   const signOut = async () => {
+    console.log('AuthProvider: Signing out...');
     await supabase.auth.signOut();
     setProfile(null);
   };
