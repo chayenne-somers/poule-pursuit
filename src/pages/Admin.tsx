@@ -17,7 +17,6 @@ import {
   initializeTournament,
   calculateStandings
 } from '@/utils/tournamentUtils';
-import AdminAuth from '@/components/AdminAuth';
 import TournamentStructure from '@/components/TournamentStructure';
 import TeamStandings from '@/components/TeamStandings';
 import NavBar from '@/components/NavBar';
@@ -71,7 +70,6 @@ const Admin = () => {
   const { toast } = useToast();
   const [tournamentName, setTournamentName] = useState('');
   const [tournament, setTournament] = useState<Tournament | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [navigationState, setNavigationState] = useState<NavigationState>({});
   const [createDialogVisible, setCreateDialogVisible] = useState(false);
@@ -93,7 +91,7 @@ const Admin = () => {
   const [player1NameForm, setPlayer1NameForm] = useState('');
   const [player2NameForm, setPlayer2NameForm] = useState('');
 
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     const fetchTournament = async () => {
@@ -596,108 +594,111 @@ const Admin = () => {
     <div className="container mx-auto py-6">
       <div className="space-y-6">
         <header className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Admin Panel</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Admin Panel</h1>
+            {profile && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Welcome, {profile.username || profile.full_name || 'Admin'}
+              </p>
+            )}
+          </div>
         </header>
         
         <div className="mt-6">
-          {isLoggedIn ? (
-            loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-pulse flex space-x-2">
-                  <div className="h-3 w-3 bg-primary rounded-full"></div>
-                  <div className="h-3 w-3 bg-primary rounded-full"></div>
-                  <div className="h-3 w-3 bg-primary rounded-full"></div>
-                </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-pulse flex space-x-2">
+                <div className="h-3 w-3 bg-primary rounded-full"></div>
+                <div className="h-3 w-3 bg-primary rounded-full"></div>
+                <div className="h-3 w-3 bg-primary rounded-full"></div>
               </div>
-            ) : (
-              <div className="space-y-6">
-                
-                <div className="flex flex-wrap gap-4 mb-8">
-                  <Button onClick={() => handleAddItem('discipline')} className="flex items-center gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Create New Discipline
-                  </Button>
-                  <Button onClick={() => handleAddItem('level')} className="flex items-center gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Create New Level
-                  </Button>
-                  <Button onClick={() => handleAddItem('poule')} className="flex items-center gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Create New Poule
-                  </Button>
-                  {/* Fix: Properly access poules through discipline.levels */}
-                  <TeamCsvImport 
-                    poules={tournament?.disciplines.flatMap(d => 
-                      d.levels.flatMap(l => 
-                        l.poules.map(p => ({
-                          id: p.id,
-                          name: p.name,
-                          path: `${d.name} - Level ${l.name}`
-                        }))
-                      )
-                    ) || []}
-                    onImportComplete={async (teamsWithPoules) => {
-                      if (!tournament) return;
-                      
-                      const updatedTournament = { ...tournament };
-                      
-                      // Process the imported teams
-                      teamsWithPoules.forEach(({ pouleId, teams }) => {
-                        // Find the poule
-                        for (const discipline of updatedTournament.disciplines) {
-                          for (const level of discipline.levels) {
-                            const poule = level.poules.find(p => p.id === pouleId);
-                            if (poule) {
-                              // Add the teams to the poule
-                              poule.teams = [...poule.teams, ...teams];
-                              // Regenerate matches
-                              poule.matches = generateMatches(poule);
-                              return;
-                            }
+            </div>
+          ) : (
+            <div className="space-y-6">
+              
+              <div className="flex flex-wrap gap-4 mb-8">
+                <Button onClick={() => handleAddItem('discipline')} className="flex items-center gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Create New Discipline
+                </Button>
+                <Button onClick={() => handleAddItem('level')} className="flex items-center gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Create New Level
+                </Button>
+                <Button onClick={() => handleAddItem('poule')} className="flex items-center gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Create New Poule
+                </Button>
+                {/* Fix: Properly access poules through discipline.levels */}
+                <TeamCsvImport 
+                  poules={tournament?.disciplines.flatMap(d => 
+                    d.levels.flatMap(l => 
+                      l.poules.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        path: `${d.name} - Level ${l.name}`
+                      }))
+                    )
+                  ) || []}
+                  onImportComplete={async (teamsWithPoules) => {
+                    if (!tournament) return;
+                    
+                    const updatedTournament = { ...tournament };
+                    
+                    // Process the imported teams
+                    teamsWithPoules.forEach(({ pouleId, teams }) => {
+                      // Find the poule
+                      for (const discipline of updatedTournament.disciplines) {
+                        for (const level of discipline.levels) {
+                          const poule = level.poules.find(p => p.id === pouleId);
+                          if (poule) {
+                            // Add the teams to the poule
+                            poule.teams = [...poule.teams, ...teams];
+                            // Regenerate matches
+                            poule.matches = generateMatches(poule);
+                            return;
                           }
                         }
-                      });
-                      
-                      setTournament(updatedTournament);
-                      await saveTournament(updatedTournament);
-                    }}
-                  />
-                  <div className="ml-auto">
-                    <Button onClick={handleSaveTournament} className="flex items-center gap-2">
-                      <Save className="h-4 w-4" />
-                      Save Tournament
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="mt-8">
-                  <AdminForm onDataChange={handleRefreshData} />
-                </div>
-                
-                <div className="mt-8">
-                  {tournament ? (
-                    <TournamentStructure
-                      disciplines={tournament.disciplines}
-                      tournament={tournament}
-                      isAdmin={true}
-                      navigationState={navigationState}
-                      onNavigationChange={handleNavigationChange}
-                      onEditItem={handleEditItem}
-                      onDeleteItem={handleDeleteItem}
-                      onViewTeams={handleViewTeams}
-                    />
-                  ) : (
-                    <Card>
-                      <CardContent className="flex flex-col items-center justify-center py-12">
-                        No tournament created. Create one to start.
-                      </CardContent>
-                    </Card>
-                  )}
+                      }
+                    });
+                    
+                    setTournament(updatedTournament);
+                    await saveTournament(updatedTournament);
+                  }}
+                />
+                <div className="ml-auto">
+                  <Button onClick={handleSaveTournament} className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    Save Tournament
+                  </Button>
                 </div>
               </div>
-            )
-          ) : (
-            <AdminAuth onAuthenticated={() => setIsLoggedIn(true)} />
+              
+              <div className="mt-8">
+                <AdminForm onDataChange={handleRefreshData} />
+              </div>
+              
+              <div className="mt-8">
+                {tournament ? (
+                  <TournamentStructure
+                    disciplines={tournament.disciplines}
+                    tournament={tournament}
+                    isAdmin={true}
+                    navigationState={navigationState}
+                    onNavigationChange={handleNavigationChange}
+                    onEditItem={handleEditItem}
+                    onDeleteItem={handleDeleteItem}
+                    onViewTeams={handleViewTeams}
+                  />
+                ) : (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      No tournament created. Create one to start.
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

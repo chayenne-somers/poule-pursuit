@@ -5,7 +5,7 @@ import AuthNavBar from './AuthNavBar';
 import { useAuth } from '@/hooks/use-auth';
 
 const NavBar = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const location = useLocation();
   const isPouleRoute = location.pathname.startsWith('/poule/');
 
@@ -26,8 +26,8 @@ const NavBar = () => {
               </Button>
             )}
             
-            {/* Only show Admin button for authenticated users */}
-            {user && (
+            {/* Only show Admin button for admin users */}
+            {user && isAdmin && (
               <Button variant="ghost" asChild>
                 <Link to="/admin">Admin</Link>
               </Button>

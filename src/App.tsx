@@ -12,6 +12,7 @@ import AuthCallback from "./pages/AuthCallback";
 import PouleDetails from "./pages/PouleDetails";
 import NotFound from "./pages/NotFound";
 import AuthCheck from "./components/AuthCheck";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -33,8 +34,14 @@ const App = () => (
             {/* Protected routes */}
             <Route element={<AuthCheck />}>
               <Route path="/" element={<Index />} />
-              <Route path="/admin" element={<Admin />} />
             </Route>
+            
+            {/* Admin-only routes */}
+            <Route path="/admin" element={
+              <AdminProtectedRoute>
+                <Admin />
+              </AdminProtectedRoute>
+            } />
             
             <Route path="*" element={<NotFound />} />
           </Routes>

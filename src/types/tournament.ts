@@ -65,6 +65,15 @@ export interface TeamStanding {
   pointsScored: number;
 }
 
+// User profile type
+export interface UserProfile {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: 'user' | 'admin';
+}
+
 // User type for authentication
 export interface User {
   id: string;
