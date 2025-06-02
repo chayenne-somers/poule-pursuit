@@ -1,17 +1,16 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminForm from '@/components/AdminForm';
 import TournamentStructure from '@/components/TournamentStructure';
 import { Tournament, Discipline, Level, Poule, Team } from '@/types/tournament';
-import { loadTournament, saveTournament } from '@/utils/tournamentUtils';
+import { loadTournament, saveTournament, initializeTournament } from '@/utils/tournamentUtils';
 import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, Settings, Users } from 'lucide-react';
 import TeamsViewDialog from '@/components/TeamsViewDialog';
 
 const Admin = () => {
-  const [tournament, setTournament] = useState<Tournament>(loadTournament());
+  const [tournament, setTournament] = useState<Tournament>(initializeTournament());
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formType, setFormType] = useState<'discipline' | 'level' | 'poule' | 'team'>('discipline');
@@ -19,6 +18,24 @@ const Admin = () => {
   const [showTeamsDialog, setShowTeamsDialog] = useState(false);
   const [selectedPouleForTeams, setSelectedPouleForTeams] = useState<string>('');
   const { toast } = useToast();
+
+  // Load tournament data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const tournamentData = await loadTournament();
+        setTournament(tournamentData);
+      } catch (error) {
+        console.error('Error loading tournament data:', error);
+        toast({
+          title: "Error loading data",
+          description: "Failed to load tournament data",
+          variant: "destructive"
+        });
+      }
+    };
+    loadData();
+  }, []);
 
   const downloadData = () => {
     const dataStr = JSON.stringify(tournament, null, 2);
@@ -30,15 +47,15 @@ const Admin = () => {
     linkElement.click();
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const uploadedData = JSON.parse(e.target?.result as string);
-          setTournament(updatedData);
-          saveTournament(uploadedData);
+          setTournament(uploadedData);
+          await saveTournament(uploadedData);
           toast({
             title: "Data imported successfully",
             description: "Tournament data has been loaded from file",
@@ -75,7 +92,7 @@ const Admin = () => {
     setShowForm(true);
   };
 
-  const handleDeleteItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
+  const handleDeleteItem = async (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
     let updatedTournament = { ...tournament };
     
     if (type === 'discipline') {
@@ -98,7 +115,7 @@ const Admin = () => {
     }
     
     setTournament(updatedTournament);
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     
     toast({
       title: `${type.charAt(0).toUpperCase() + type.slice(1)} deleted`,
@@ -111,7 +128,7 @@ const Admin = () => {
     setShowTeamsDialog(true);
   };
 
-  const handleFormSubmit = (formData: any) => {
+  const handleFormSubmit = async (formData: any) => {
     let updatedTournament = { ...tournament };
     
     if (editingItem) {
@@ -171,7 +188,7 @@ const Admin = () => {
     }
     
     setTournament(updatedTournament);
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     setShowForm(false);
     setEditingItem(null);
     
@@ -294,8 +311,9 @@ const Admin = () => {
 
       {showForm && (
         <AdminForm
-          onDataChange={() => {
-            setTournament(loadTournament());
+          onDataChange={async () => {
+            const tournamentData = await loadTournament();
+            setTournament(tournamentData);
           }}
         />
       )}
