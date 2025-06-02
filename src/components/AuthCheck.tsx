@@ -13,21 +13,54 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
   const location = useLocation();
 
   useEffect(() => {
-    // First, set up the auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user || null);
-        setLoading(false);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // First, set up the auth state listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log('AuthCheck: Auth event:', event, 'Session:', !!session);
+            
+            if (mounted) {
+              setUser(session?.user || null);
+              setLoading(false);
+            }
+          }
+        );
+
+        // Then check for existing session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthCheck: Error getting session:', error);
+        }
+        
+        console.log('AuthCheck: Initial session check:', !!session);
+        
+        if (mounted) {
+          setUser(session?.user || null);
+          setLoading(false);
+        }
+
+        return () => {
+          mounted = false;
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('AuthCheck: Error initializing auth:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    );
+    };
 
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    const cleanup = initializeAuth();
+    
+    return () => {
+      mounted = false;
+      cleanup.then(fn => fn && fn());
+    };
   }, []);
 
   // Debug auth state
@@ -35,7 +68,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     console.log("AuthCheck: Auth state updated", { 
       user: user ? "Authenticated" : "Unauthenticated", 
       path: location.pathname,
-      allowAccess: location.pathname.startsWith('/poule/')
+      isPouleRoute: location.pathname.startsWith('/poule/')
     });
   }, [user, location.pathname]);
 
@@ -47,9 +80,9 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-pulse flex space-x-2">
-          <div className="h-3 w-3 bg-primary rounded-full"></div>
-          <div className="h-3 w-3 bg-primary rounded-full"></div>
-          <div className="h-3 w-3 bg-primary rounded-full"></div>
+          <div className="h-3 w-3 bg-primary rounded-full animate-pulse"></div>
+          <div className="h-3 w-3 bg-primary rounded-full animate-pulse"></div>
+          <div className="h-3 w-3 bg-primary rounded-full animate-pulse"></div>
         </div>
       </div>
     );
@@ -62,6 +95,7 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
 
   // Require authentication for all other routes
   if (!user) {
+    console.log('AuthCheck: Redirecting to /auth, no user found');
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 

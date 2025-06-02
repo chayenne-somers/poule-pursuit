@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Eye, EyeOff } from 'lucide-react';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,48 +23,72 @@ const Auth = () => {
 
   // Check if user is already logged in
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/');
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Get the intended destination or default to home
+          const from = location.state?.from?.pathname || '/';
+          navigate(from, { replace: true });
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
       }
-    });
-  }, [navigate]);
+    };
+    
+    checkAuth();
+  }, [navigate, location.state]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Get the current URL for the redirect
-      const currentOrigin = window.location.origin;
-      const redirectTo = `${currentOrigin}/auth/callback`;
+      // Get the current URL for the redirect - ensure it works in production
+      const currentUrl = new URL(window.location.href);
+      const redirectTo = `${currentUrl.origin}/auth/callback`;
+      
+      console.log('Sign up attempt with redirect:', redirectTo);
       
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
-            username,
-            full_name: fullName
+            username: username.trim(),
+            full_name: fullName.trim()
           },
           emailRedirectTo: redirectTo
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign up error:', error);
+        throw error;
+      }
       
-      toast({
-        title: "Account created successfully",
-        description: "Please check your email to confirm your account",
-      });
+      console.log('Sign up response:', data);
       
-      if (data.session) {
-        navigate('/');
+      if (data.user && !data.session) {
+        // Email confirmation required
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link to complete your registration.",
+        });
+      } else if (data.session) {
+        // Immediate sign in (email confirmation disabled)
+        toast({
+          title: "Account created successfully",
+          description: "Welcome to Poule Pursuit!",
+        });
+        const from = location.state?.from?.pathname || '/';
+        navigate(from, { replace: true });
       }
     } catch (error: any) {
+      console.error('Sign up error:', error);
       toast({
         title: "Error creating account",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
     } finally {
@@ -76,23 +101,48 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      console.log('Sign in attempt for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
       
-      toast({
-        title: "Signed in successfully",
-        description: `Welcome back${data.user?.user_metadata?.username ? ', ' + data.user.user_metadata.username : ''}!`,
-      });
+      console.log('Sign in successful:', data);
       
-      navigate('/');
+      if (data.session) {
+        toast({
+          title: "Signed in successfully",
+          description: `Welcome back${data.user?.user_metadata?.username ? ', ' + data.user.user_metadata.username : ''}!`,
+        });
+        
+        // Navigate to intended destination or home
+        const from = location.state?.from?.pathname || '/';
+        navigate(from, { replace: true });
+      }
     } catch (error: any) {
+      console.error('Sign in error details:', error);
+      
+      let errorMessage = "An unexpected error occurred";
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = "Please confirm your email address before signing in.";
+      } else if (error.message?.includes('Too many requests')) {
+        errorMessage = "Too many sign in attempts. Please wait a moment before trying again.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error signing in",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -130,6 +180,7 @@ const Auth = () => {
                     placeholder="your.email@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
                     required
                   />
                 </div>
@@ -141,12 +192,14 @@ const Auth = () => {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
                       required
                     />
                     <button
                       type="button"
                       onClick={toggleShowPassword}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      disabled={isLoading}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -172,6 +225,7 @@ const Auth = () => {
                     placeholder="your.email@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
                     required
                   />
                 </div>
@@ -183,6 +237,7 @@ const Auth = () => {
                     placeholder="johndoe"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    disabled={isLoading}
                     required
                   />
                 </div>
@@ -194,6 +249,7 @@ const Auth = () => {
                     placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    disabled={isLoading}
                     required
                   />
                 </div>
@@ -205,12 +261,14 @@ const Auth = () => {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
                       required
                     />
                     <button
                       type="button"
                       onClick={toggleShowPassword}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      disabled={isLoading}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
