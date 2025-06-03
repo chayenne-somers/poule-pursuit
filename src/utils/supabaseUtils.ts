@@ -298,3 +298,70 @@ export const removeAllTeamsFromPoule = async (pouleId: string): Promise<void> =>
 
   if (error) throw error;
 };
+
+// Create matches when teams are added to a poule
+export const generateMatchesForPoule = async (pouleId: string): Promise<void> => {
+  // First, get all teams in the poule
+  const { data: teams, error: teamsError } = await supabase
+    .from('teams')
+    .select('id')
+    .eq('poule_id', pouleId);
+
+  if (teamsError) throw teamsError;
+
+  if (!teams || teams.length < 2) return;
+
+  // Delete existing matches for this poule
+  await supabase
+    .from('matches')
+    .delete()
+    .eq('poule_id', pouleId);
+
+  // Generate round-robin matches
+  const matches = [];
+  let order = 1;
+
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      matches.push({
+        poule_id: pouleId,
+        team_a_id: teams[i].id,
+        team_b_id: teams[j].id,
+        match_order: order++,
+        completed: false
+      });
+    }
+  }
+
+  if (matches.length > 0) {
+    const { error } = await supabase
+      .from('matches')
+      .insert(matches);
+
+    if (error) throw error;
+  }
+};
+
+// Update match scores
+export const updateMatchScores = async (
+  matchId: string, 
+  set1ScoreA?: number, set1ScoreB?: number,
+  set2ScoreA?: number, set2ScoreB?: number,
+  set3ScoreA?: number, set3ScoreB?: number,
+  completed?: boolean
+): Promise<void> => {
+  const { error } = await supabase
+    .from('matches')
+    .update({
+      set1_score_a: set1ScoreA,
+      set1_score_b: set1ScoreB,
+      set2_score_a: set2ScoreA,
+      set2_score_b: set2ScoreB,
+      set3_score_a: set3ScoreA,
+      set3_score_b: set3ScoreB,
+      completed: completed
+    })
+    .eq('id', matchId);
+
+  if (error) throw error;
+};

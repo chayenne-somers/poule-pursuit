@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,8 @@ import {
   createTeam,
   updateTeam,
   deleteTeam,
-  removeAllTeamsFromPoule
+  removeAllTeamsFromPoule,
+  generateMatchesForPoule
 } from '@/utils/supabaseUtils';
 
 const Admin = () => {
@@ -40,7 +42,9 @@ const Admin = () => {
     const loadData = async () => {
       try {
         setLoading(true);
+        console.log('Loading tournament data from database...');
         const tournamentData = await loadTournamentFromDB();
+        console.log('Loaded tournament data:', tournamentData);
         setTournament(tournamentData);
       } catch (error) {
         console.error('Error loading tournament data:', error);
@@ -58,7 +62,9 @@ const Admin = () => {
 
   const refreshTournamentData = async () => {
     try {
+      console.log('Refreshing tournament data from database...');
       const tournamentData = await loadTournamentFromDB();
+      console.log('Refreshed tournament data:', tournamentData);
       setTournament(tournamentData);
     } catch (error) {
       console.error('Error refreshing tournament data:', error);
@@ -114,6 +120,7 @@ const Admin = () => {
   const handleDeleteItem = async (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
     try {
       setLoading(true);
+      console.log(`Deleting ${type} with id:`, id);
       
       if (type === 'discipline') {
         await deleteDiscipline(id);
@@ -151,6 +158,7 @@ const Admin = () => {
   const handleFormSubmit = async (formData: any) => {
     try {
       setLoading(true);
+      console.log(`${editingItem ? 'Updating' : 'Creating'} ${formType} with data:`, formData);
       
       if (editingItem) {
         // Update existing item
@@ -162,6 +170,8 @@ const Admin = () => {
           await updatePoule(editingItem.id, formData.name);
         } else if (formType === 'team') {
           await updateTeam(editingItem.id, formData.player1Name, formData.player2Name);
+          // Regenerate matches when team is updated
+          await generateMatchesForPoule(parentId);
         }
       } else {
         // Add new item
@@ -173,6 +183,8 @@ const Admin = () => {
           await createPoule(formData.parentId, formData.name);
         } else if (formType === 'team') {
           await createTeam(formData.pouleId, formData.player1Name, formData.player2Name);
+          // Generate matches when new team is added
+          await generateMatchesForPoule(formData.pouleId);
         }
       }
       
@@ -201,13 +213,35 @@ const Admin = () => {
   };
 
   const handleTeamDelete = async (teamId: string) => {
+    // Find the poule for this team to regenerate matches after deletion
+    let pouleId = '';
+    for (const discipline of tournament.disciplines) {
+      for (const level of discipline.levels) {
+        for (const poule of level.poules) {
+          if (poule.teams.some(t => t.id === teamId)) {
+            pouleId = poule.id;
+            break;
+          }
+        }
+      }
+    }
+    
     await handleDeleteItem('team', teamId);
+    
+    // Regenerate matches after team deletion
+    if (pouleId) {
+      await generateMatchesForPoule(pouleId);
+      await refreshTournamentData();
+    }
   };
 
   const handleRemoveAllTeams = async (pouleId: string) => {
     try {
       setLoading(true);
+      console.log('Removing all teams from poule:', pouleId);
       await removeAllTeamsFromPoule(pouleId);
+      // Also remove all matches for this poule
+      await generateMatchesForPoule(pouleId); // This will clear matches when no teams
       await refreshTournamentData();
       
       toast({
@@ -243,7 +277,7 @@ const Admin = () => {
       reader.onload = async (e) => {
         try {
           const uploadedData = JSON.parse(e.target?.result as string);
-          // Note: File upload functionality would need to be implemented to work with the new DB structure
+          // Note: File import functionality would need to be implemented to work with the new DB structure
           toast({
             title: "Import notice",
             description: "File import needs to be updated for the new database structure",
