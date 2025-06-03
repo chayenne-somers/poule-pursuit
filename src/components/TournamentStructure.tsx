@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Discipline, Level, Poule, NavigationState } from '@/types/tournament';
-import { ChevronRight, Trophy, Users, Award, Trash, Edit } from 'lucide-react';
+import { ChevronRight, Trophy, Users, Award, Trash, Edit, Plus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -12,27 +12,28 @@ import { cn } from '@/lib/utils';
 import { getPouleWinner } from '@/utils/tournamentUtils';
 
 interface TournamentStructureProps {
-  disciplines: Discipline[]; // This is required
-  tournament?: { disciplines: Discipline[] }; // This is optional
+  disciplines: Discipline[];
+  tournament?: { disciplines: Discipline[] };
   isAdmin?: boolean;
   navigationState?: NavigationState;
   onNavigationChange?: (newState: NavigationState) => void;
   onEditItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
   onDeleteItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
   onViewTeams?: (pouleId: string) => void;
+  onAddNew?: (type: 'discipline' | 'level' | 'poule' | 'team', parentId?: string) => void;
 }
 
 const TournamentStructure = ({ 
   disciplines, 
-  tournament, // Accept the tournament prop
+  tournament,
   isAdmin = false,
   navigationState,
   onNavigationChange,
   onEditItem,
   onDeleteItem,
-  onViewTeams
+  onViewTeams,
+  onAddNew
 }: TournamentStructureProps) => {
-  // If tournament prop is passed, use its disciplines, otherwise use the disciplines prop
   const allDisciplines = tournament?.disciplines || disciplines;
   
   const [selectedDiscipline, setSelectedDiscipline] = useState<string | undefined>(
@@ -133,19 +134,28 @@ const TournamentStructure = ({
                 animateCards && "animate-fade-in"
               )}
             >
-              <div className="flex items-center gap-2 mb-6">
-                <Trophy className="h-5 w-5 text-primary" />
-                <h2 className="text-2xl font-semibold tracking-tight">{discipline.name}</h2>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  <h2 className="text-2xl font-semibold tracking-tight">{discipline.name}</h2>
+                </div>
+                {isAdmin && onAddNew && (
+                  <Button onClick={() => onAddNew('level', discipline.id)} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Level
+                  </Button>
+                )}
               </div>
 
               {discipline.levels.length === 0 ? (
                 <Card className="border border-dashed">
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <p className="text-muted-foreground mb-4">No levels defined yet</p>
-                    {isAdmin && (
-                      <p className="text-sm text-muted-foreground">
-                        Add levels in the admin panel
-                      </p>
+                    {isAdmin && onAddNew && (
+                      <Button onClick={() => onAddNew('level', discipline.id)} variant="outline">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Level
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
@@ -153,29 +163,37 @@ const TournamentStructure = ({
                 <div className="space-y-8">
                   {discipline.levels.map((level) => (
                     <div key={level.id} className="animate-fade-in">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Badge className="bg-secondary text-secondary-foreground">
-                          Level {level.name}
-                        </Badge>
-                        {isAdmin && (
-                          <div className="flex items-center">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7 ml-2"
-                              onClick={() => onEditItem && onEditItem('level', level.id, discipline.id)}
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7"
-                              onClick={() => onDeleteItem && onDeleteItem('level', level.id, discipline.id)}
-                            >
-                              <Trash className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-secondary text-secondary-foreground">
+                            Level {level.name}
+                          </Badge>
+                          {isAdmin && (
+                            <div className="flex items-center">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 ml-2"
+                                onClick={() => onEditItem && onEditItem('level', level.id, discipline.id)}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7"
+                                onClick={() => onDeleteItem && onDeleteItem('level', level.id, discipline.id)}
+                              >
+                                <Trash className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        {isAdmin && onAddNew && (
+                          <Button onClick={() => onAddNew('poule', level.id)} size="sm" variant="outline">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Poule
+                          </Button>
                         )}
                       </div>
 
@@ -183,10 +201,11 @@ const TournamentStructure = ({
                         <Card className="border border-dashed">
                           <CardContent className="flex flex-col items-center justify-center py-8">
                             <p className="text-muted-foreground mb-2">No poules defined yet</p>
-                            {isAdmin && (
-                              <p className="text-sm text-muted-foreground">
-                                Add poules in the admin panel
-                              </p>
+                            {isAdmin && onAddNew && (
+                              <Button onClick={() => onAddNew('poule', level.id)} variant="outline">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add First Poule
+                              </Button>
                             )}
                           </CardContent>
                         </Card>
@@ -245,6 +264,17 @@ const TournamentStructure = ({
                                     <CardDescription className="flex items-center gap-1">
                                       <Users className="h-3.5 w-3.5" />
                                       <span>{poule.teams.length} teams</span>
+                                      {isAdmin && onAddNew && (
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm" 
+                                          className="ml-auto h-6 px-2 text-xs"
+                                          onClick={() => onAddNew('team', poule.id)}
+                                        >
+                                          <Plus className="h-3 w-3 mr-1" />
+                                          Add Team
+                                        </Button>
+                                      )}
                                     </CardDescription>
                                   </CardHeader>
                                   <CardContent>

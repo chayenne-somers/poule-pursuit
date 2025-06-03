@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +73,13 @@ const Admin = () => {
     }
   };
 
+  const handleAddNew = (type: 'discipline' | 'level' | 'poule' | 'team', parentId?: string) => {
+    setFormType(type);
+    setParentId(parentId || '');
+    setEditingItem(null);
+    setShowForm(true);
+  };
+
   const handleEditItem = (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => {
     setFormType(type);
     setParentId(parentId || '');
@@ -86,6 +94,20 @@ const Admin = () => {
       const discipline = tournament.disciplines.find(d => d.levels.some(l => l.id === parentId));
       const level = discipline?.levels.find(l => l.id === parentId);
       itemToEdit = level?.poules.find(p => p.id === id);
+    } else if (type === 'team') {
+      // Find team in any poule
+      for (const discipline of tournament.disciplines) {
+        for (const level of discipline.levels) {
+          for (const poule of level.poules) {
+            const team = poule.teams.find(t => t.id === id);
+            if (team) {
+              itemToEdit = team;
+              setParentId(poule.id);
+              break;
+            }
+          }
+        }
+      }
     }
     
     setEditingItem(itemToEdit);
@@ -111,6 +133,19 @@ const Admin = () => {
             ? { ...l, poules: l.poules.filter(p => p.id !== id) }
             : l
         )
+      }));
+    } else if (type === 'team') {
+      // Remove team from its poule
+      updatedTournament.disciplines = updatedTournament.disciplines.map(d => ({
+        ...d,
+        levels: d.levels.map(l => ({
+          ...l,
+          poules: l.poules.map(p => 
+            p.id === parentId
+              ? { ...p, teams: p.teams.filter(t => t.id !== id) }
+              : p
+          )
+        }))
       }));
     }
     
@@ -152,6 +187,18 @@ const Admin = () => {
               : l
           )
         }));
+      } else if (formType === 'team') {
+        updatedTournament.disciplines = updatedTournament.disciplines.map(d => ({
+          ...d,
+          levels: d.levels.map(l => ({
+            ...l,
+            poules: l.poules.map(p => 
+              p.id === parentId
+                ? { ...p, teams: p.teams.map(t => t.id === editingItem.id ? { ...t, ...formData } : t) }
+                : p
+            )
+          }))
+        }));
       }
     } else {
       // Add new item
@@ -184,6 +231,23 @@ const Admin = () => {
             l.id === parentId ? { ...l, poules: [...l.poules, newPoule] } : l
           )
         }));
+      } else if (formType === 'team') {
+        const newTeam: Team = {
+          id: Date.now().toString(),
+          players: [
+            { id: Date.now().toString() + '_1', name: formData.player1Name },
+            { id: Date.now().toString() + '_2', name: formData.player2Name }
+          ] as [any, any]
+        };
+        updatedTournament.disciplines = updatedTournament.disciplines.map(d => ({
+          ...d,
+          levels: d.levels.map(l => ({
+            ...l,
+            poules: l.poules.map(p => 
+              p.id === parentId ? { ...p, teams: [...p.teams, newTeam] } : p
+            )
+          }))
+        }));
       }
     }
     
@@ -195,6 +259,51 @@ const Admin = () => {
     toast({
       title: editingItem ? "Item updated" : "Item added",
       description: `The ${formType} has been successfully ${editingItem ? 'updated' : 'added'}.`,
+    });
+  };
+
+  const handleTeamEdit = (teamId: string) => {
+    handleEditItem('team', teamId);
+  };
+
+  const handleTeamDelete = async (teamId: string) => {
+    // Find the poule containing this team
+    let pouleId = '';
+    for (const discipline of tournament.disciplines) {
+      for (const level of discipline.levels) {
+        for (const poule of level.poules) {
+          if (poule.teams.some(t => t.id === teamId)) {
+            pouleId = poule.id;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (pouleId) {
+      await handleDeleteItem('team', teamId, pouleId);
+    }
+  };
+
+  const handleRemoveAllTeams = async (pouleId: string) => {
+    let updatedTournament = { ...tournament };
+    
+    updatedTournament.disciplines = updatedTournament.disciplines.map(d => ({
+      ...d,
+      levels: d.levels.map(l => ({
+        ...l,
+        poules: l.poules.map(p => 
+          p.id === pouleId ? { ...p, teams: [], matches: [] } : p
+        )
+      }))
+    }));
+    
+    setTournament(updatedTournament);
+    await saveTournament(updatedTournament);
+    
+    toast({
+      title: "All teams removed",
+      description: "All teams have been removed from the poule.",
     });
   };
 
@@ -242,11 +351,7 @@ const Admin = () => {
             </CardHeader>
             <CardContent className="space-y-2">
               <Button 
-                onClick={() => {
-                  setFormType('discipline');
-                  setEditingItem(null);
-                  setShowForm(true);
-                }}
+                onClick={() => handleAddNew('discipline')}
                 className="w-full justify-start"
                 variant="outline"
               >
@@ -304,6 +409,7 @@ const Admin = () => {
               onEditItem={handleEditItem}
               onDeleteItem={handleDeleteItem}
               onViewTeams={handleViewTeams}
+              onAddNew={handleAddNew}
             />
           </CardContent>
         </Card>
@@ -311,10 +417,15 @@ const Admin = () => {
 
       {showForm && (
         <AdminForm
-          onDataChange={async () => {
-            const tournamentData = await loadTournament();
-            setTournament(tournamentData);
+          type={formType}
+          parentId={parentId}
+          editingItem={editingItem}
+          onSubmit={handleFormSubmit}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingItem(null);
           }}
+          tournament={tournament}
         />
       )}
 
@@ -325,15 +436,9 @@ const Admin = () => {
           .flatMap(d => d.levels)
           .flatMap(l => l.poules)
           .find(p => p.id === selectedPouleForTeams) || null}
-        onEdit={(teamId) => {
-          // Handle team edit
-        }}
-        onDelete={(teamId) => {
-          // Handle team delete
-        }}
-        onRemoveAllTeams={(pouleId) => {
-          // Handle remove all teams
-        }}
+        onEdit={handleTeamEdit}
+        onDelete={handleTeamDelete}
+        onRemoveAllTeams={handleRemoveAllTeams}
       />
     </div>
   );
