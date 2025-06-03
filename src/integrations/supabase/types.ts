@@ -9,6 +9,175 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      disciplines: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          tournament_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          tournament_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          tournament_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disciplines_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      levels: {
+        Row: {
+          created_at: string | null
+          discipline_id: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          discipline_id?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          discipline_id?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "levels_discipline_id_fkey"
+            columns: ["discipline_id"]
+            isOneToOne: false
+            referencedRelation: "disciplines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          id: string
+          match_order: number
+          poule_id: string | null
+          set1_score_a: number | null
+          set1_score_b: number | null
+          set2_score_a: number | null
+          set2_score_b: number | null
+          set3_score_a: number | null
+          set3_score_b: number | null
+          team_a_id: string | null
+          team_b_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          id?: string
+          match_order: number
+          poule_id?: string | null
+          set1_score_a?: number | null
+          set1_score_b?: number | null
+          set2_score_a?: number | null
+          set2_score_b?: number | null
+          set3_score_a?: number | null
+          set3_score_b?: number | null
+          team_a_id?: string | null
+          team_b_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          id?: string
+          match_order?: number
+          poule_id?: string | null
+          set1_score_a?: number | null
+          set1_score_b?: number | null
+          set2_score_a?: number | null
+          set2_score_b?: number | null
+          set3_score_a?: number | null
+          set3_score_b?: number | null
+          team_a_id?: string | null
+          team_b_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_poule_id_fkey"
+            columns: ["poule_id"]
+            isOneToOne: false
+            referencedRelation: "poules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_team_a_id_fkey"
+            columns: ["team_a_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_team_b_id_fkey"
+            columns: ["team_b_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poules: {
+        Row: {
+          created_at: string | null
+          id: string
+          level_id: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          level_id?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          level_id?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poules_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "levels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -35,6 +204,41 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      teams: {
+        Row: {
+          created_at: string | null
+          id: string
+          player1_name: string
+          player2_name: string
+          poule_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          player1_name: string
+          player2_name: string
+          poule_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          player1_name?: string
+          player2_name?: string
+          poule_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_poule_id_fkey"
+            columns: ["poule_id"]
+            isOneToOne: false
+            referencedRelation: "poules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tournaments: {
         Row: {
