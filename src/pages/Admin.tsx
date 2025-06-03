@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import TournamentStructure from '@/components/TournamentStructure';
 import { Tournament, Discipline, Level, Poule, Team } from '@/types/tournament';
 import { loadTournament, saveTournament, initializeTournament } from '@/utils/tournamentUtils';
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Settings, Users } from 'lucide-react';
+import { Download, Upload, Settings, Users, Save } from 'lucide-react';
 import TeamsViewDialog from '@/components/TeamsViewDialog';
 
 const Admin = () => {
@@ -18,6 +17,7 @@ const Admin = () => {
   const [parentId, setParentId] = useState<string>('');
   const [showTeamsDialog, setShowTeamsDialog] = useState(false);
   const [selectedPouleForTeams, setSelectedPouleForTeams] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   // Load tournament data on component mount
@@ -38,6 +38,43 @@ const Admin = () => {
     loadData();
   }, []);
 
+  const saveData = async (updatedTournament: Tournament) => {
+    try {
+      setIsSaving(true);
+      await saveTournament(updatedTournament);
+      console.log('Tournament data saved successfully');
+    } catch (error) {
+      console.error('Error saving tournament data:', error);
+      toast({
+        title: "Error saving data",
+        description: "Failed to save tournament data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleManualSave = async () => {
+    try {
+      setIsSaving(true);
+      await saveTournament(tournament);
+      toast({
+        title: "Data saved",
+        description: "Tournament data has been saved successfully.",
+      });
+    } catch (error) {
+      console.error('Error saving tournament data:', error);
+      toast({
+        title: "Error saving data",
+        description: "Failed to save tournament data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const downloadData = () => {
     const dataStr = JSON.stringify(tournament, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
@@ -56,7 +93,7 @@ const Admin = () => {
         try {
           const uploadedData = JSON.parse(e.target?.result as string);
           setTournament(uploadedData);
-          await saveTournament(uploadedData);
+          await saveData(uploadedData);
           toast({
             title: "Data imported successfully",
             description: "Tournament data has been loaded from file",
@@ -150,7 +187,7 @@ const Admin = () => {
     }
     
     setTournament(updatedTournament);
-    await saveTournament(updatedTournament);
+    await saveData(updatedTournament);
     
     toast({
       title: `${type.charAt(0).toUpperCase() + type.slice(1)} deleted`,
@@ -188,13 +225,20 @@ const Admin = () => {
           )
         }));
       } else if (formType === 'team') {
+        const updatedTeam = {
+          ...editingItem,
+          players: [
+            { ...editingItem.players[0], name: formData.player1Name },
+            { ...editingItem.players[1], name: formData.player2Name }
+          ]
+        };
         updatedTournament.disciplines = updatedTournament.disciplines.map(d => ({
           ...d,
           levels: d.levels.map(l => ({
             ...l,
             poules: l.poules.map(p => 
               p.id === parentId
-                ? { ...p, teams: p.teams.map(t => t.id === editingItem.id ? { ...t, ...formData } : t) }
+                ? { ...p, teams: p.teams.map(t => t.id === editingItem.id ? updatedTeam : t) }
                 : p
             )
           }))
@@ -244,7 +288,7 @@ const Admin = () => {
           levels: d.levels.map(l => ({
             ...l,
             poules: l.poules.map(p => 
-              p.id === parentId ? { ...p, teams: [...p.teams, newTeam] } : p
+              p.id === formData.pouleId ? { ...p, teams: [...p.teams, newTeam] } : p
             )
           }))
         }));
@@ -252,7 +296,7 @@ const Admin = () => {
     }
     
     setTournament(updatedTournament);
-    await saveTournament(updatedTournament);
+    await saveData(updatedTournament);
     setShowForm(false);
     setEditingItem(null);
     
@@ -299,7 +343,7 @@ const Admin = () => {
     }));
     
     setTournament(updatedTournament);
-    await saveTournament(updatedTournament);
+    await saveData(updatedTournament);
     
     toast({
       title: "All teams removed",
@@ -316,6 +360,15 @@ const Admin = () => {
             <p className="text-muted-foreground">Manage tournament structure and settings</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button 
+              onClick={handleManualSave} 
+              variant="default" 
+              size="sm"
+              disabled={isSaving}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
             <Button onClick={downloadData} variant="outline" size="sm">
               <Download className="mr-2 h-4 w-4" />
               Export Data
