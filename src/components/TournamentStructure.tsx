@@ -1,7 +1,7 @@
 
 import { Link } from 'react-router-dom';
 import { Discipline } from '@/types/tournament';
-import { getPouleWinner, isMatchComplete } from '@/utils/tournamentUtils';
+import { getPouleWinner, isMatchComplete, areAllMatchesComplete } from '@/utils/tournamentUtils';
 import { 
   Card, 
   CardHeader, 
@@ -14,9 +14,21 @@ import { Trophy, Users, Target } from 'lucide-react';
 
 interface TournamentStructureProps {
   disciplines: Discipline[];
+  isAdmin?: boolean;
+  onEditItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
+  onDeleteItem?: (type: 'discipline' | 'level' | 'poule' | 'team', id: string, parentId?: string) => void;
+  onViewTeams?: (pouleId: string) => void;
+  onAddNew?: (type: 'discipline' | 'level' | 'poule' | 'team', parentId?: string) => void;
 }
 
-const TournamentStructure = ({ disciplines }: TournamentStructureProps) => {
+const TournamentStructure = ({ 
+  disciplines, 
+  isAdmin = false, 
+  onEditItem, 
+  onDeleteItem, 
+  onViewTeams, 
+  onAddNew 
+}: TournamentStructureProps) => {
   return (
     <div className="space-y-8">
       {disciplines.map((discipline) => (
@@ -40,7 +52,7 @@ const TournamentStructure = ({ disciplines }: TournamentStructureProps) => {
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {level.poules.map((poule) => {
                       // Check if all matches in the poule are completed
-                      const allMatchesCompleted = poule.matches.every(match => isMatchComplete(match));
+                      const allMatchesCompleted = areAllMatchesComplete(poule);
                       const winner = allMatchesCompleted ? getPouleWinner(poule) : null;
                       
                       return (
