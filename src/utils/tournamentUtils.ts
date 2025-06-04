@@ -1,3 +1,4 @@
+
 import { Match, Poule, SetScore, Team, TeamStanding, Tournament } from '@/types/tournament';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
@@ -462,12 +463,14 @@ export const getSetsWon = (match: Match): { setsWonA: number; setsWonB: number }
   let setsWonB = 0;
 
   match.sets.forEach(set => {
+    // Only count sets where both scores are defined (i.e., the set has been played)
     if (set.scoreA !== undefined && set.scoreB !== undefined) {
       if (set.scoreA > set.scoreB) {
         setsWonA++;
-      } else {
+      } else if (set.scoreB > set.scoreA) {
         setsWonB++;
       }
+      // If scores are equal, neither team wins the set (though this is unusual in badminton)
     }
   });
 
