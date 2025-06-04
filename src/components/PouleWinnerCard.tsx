@@ -12,8 +12,8 @@ interface PouleWinnerCardProps {
 }
 
 const PouleWinnerCard = ({ winner, allMatchesCompleted = false }: PouleWinnerCardProps) => {
-  // If there's a winner, show the winner card
-  if (winner) {
+  // If all matches are completed and there's a winner, show the winner card
+  if (allMatchesCompleted && winner) {
     return (
       <Card className="bg-green-50 border-green-200 mb-8">
         <CardContent className="pt-6">
@@ -32,7 +32,7 @@ const PouleWinnerCard = ({ winner, allMatchesCompleted = false }: PouleWinnerCar
   }
   
   // If all matches are completed but there's no winner (tie), show a message
-  if (allMatchesCompleted) {
+  if (allMatchesCompleted && !winner) {
     return (
       <Card className="bg-amber-50 border-amber-200 mb-8">
         <CardContent className="pt-6">

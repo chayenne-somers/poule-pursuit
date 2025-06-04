@@ -14,6 +14,7 @@ import {
   getPouleWinner,
   isMatchComplete
 } from '@/utils/tournamentUtils';
+import { updateMatchScores } from '@/utils/supabaseUtils';
 import TeamStandings from '@/components/TeamStandings';
 import PouleWinnerCard from '@/components/PouleWinnerCard';
 import MatchCard from '@/components/MatchCard';
@@ -33,6 +34,7 @@ import {
   ArrowRight,
   AlertCircle
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const PouleDetails = () => {
   const { pouleId } = useParams<{ pouleId: string }>();
@@ -171,43 +173,94 @@ const PouleDetails = () => {
   const handleSaveMatch = async (matchIndex: number) => {
     if (!tournament || !poule) return;
     
-    // Create updated poule with the specific match updated
-    const updatedPoule: Poule = { 
-      ...poule, 
-      matches: poule.matches.map((m, i) => i === matchIndex ? matches[matchIndex] : m) 
-    };
-    
-    // Find and update the poule in the tournament
-    const updatedTournament = { ...tournament };
-    
-    let updated = false;
-    
-    for (let i = 0; i < updatedTournament.disciplines.length; i++) {
-      const discipline = updatedTournament.disciplines[i];
-      for (let j = 0; j < discipline.levels.length; j++) {
-        const level = discipline.levels[j];
-        for (let k = 0; k < level.poules.length; k++) {
-          const p = level.poules[k];
-          if (p.id === poule.id) {
-            updatedTournament.disciplines[i].levels[j].poules[k] = updatedPoule;
-            updated = true;
-            break;
+    try {
+      const match = matches[matchIndex];
+      
+      // Check if user is authenticated to use database
+      const { data: session } = await supabase.auth.getSession();
+      
+      if (session?.session) {
+        // Save to database for authenticated users
+        await updateMatchScores(
+          match.id,
+          match.sets[0]?.scoreA,
+          match.sets[0]?.scoreB,
+          match.sets[1]?.scoreA,
+          match.sets[1]?.scoreB,
+          match.sets[2]?.scoreA,
+          match.sets[2]?.scoreB,
+          match.completed
+        );
+        
+        // Reload tournament data to get updated state
+        const updatedTournament = await loadTournament();
+        setTournament(updatedTournament);
+        
+        // Find the updated poule
+        let foundPoule: Poule | null = null;
+        for (const discipline of updatedTournament.disciplines) {
+          for (const level of discipline.levels) {
+            for (const p of level.poules) {
+              if (p.id === pouleId) {
+                foundPoule = p;
+                break;
+              }
+            }
+            if (foundPoule) break;
           }
+          if (foundPoule) break;
         }
-        if (updated) break;
+        
+        if (foundPoule) {
+          setPoule(foundPoule);
+          setMatches(foundPoule.matches);
+        }
+      } else {
+        // For unauthenticated users, update localStorage
+        const updatedPoule: Poule = { 
+          ...poule, 
+          matches: poule.matches.map((m, i) => i === matchIndex ? matches[matchIndex] : m) 
+        };
+        
+        // Find and update the poule in the tournament
+        const updatedTournament = { ...tournament };
+        
+        let updated = false;
+        
+        for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+          const discipline = updatedTournament.disciplines[i];
+          for (let j = 0; j < discipline.levels.length; j++) {
+            const level = discipline.levels[j];
+            for (let k = 0; k < level.poules.length; k++) {
+              const p = level.poules[k];
+              if (p.id === poule.id) {
+                updatedTournament.disciplines[i].levels[j].poules[k] = updatedPoule;
+                updated = true;
+                break;
+              }
+            }
+            if (updated) break;
+          }
+          if (updated) break;
+        }
+        
+        if (updated) {
+          await saveTournament(updatedTournament);
+          setTournament(updatedTournament);
+          setPoule(updatedPoule);
+        }
       }
-      if (updated) break;
-    }
-    
-    if (updated) {
-      // Save tournament - this now works for both authenticated and unauthenticated users
-      await saveTournament(updatedTournament);
-      setTournament(updatedTournament);
-      setPoule(updatedPoule);
       
       toast({
         title: "Match saved",
         description: `Match ${matchIndex + 1} scores have been updated`,
+      });
+    } catch (error) {
+      console.error('Error saving match:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save match scores. Please try again.",
+        variant: "destructive"
       });
     }
   };
@@ -216,43 +269,97 @@ const PouleDetails = () => {
   const handleSaveScores = async () => {
     if (!tournament || !poule) return;
     
-    // Update poule with new matches
-    const updatedPoule: Poule = { ...poule, matches };
-    
-    // Find and update the poule in the tournament
-    const updatedTournament = { ...tournament };
-    
-    let updated = false;
-    
-    for (let i = 0; i < updatedTournament.disciplines.length; i++) {
-      const discipline = updatedTournament.disciplines[i];
-      for (let j = 0; j < discipline.levels.length; j++) {
-        const level = discipline.levels[j];
-        for (let k = 0; k < level.poules.length; k++) {
-          const p = level.poules[k];
-          if (p.id === poule.id) {
-            updatedTournament.disciplines[i].levels[j].poules[k] = updatedPoule;
-            updated = true;
-            break;
-          }
+    try {
+      // Check if user is authenticated to use database
+      const { data: session } = await supabase.auth.getSession();
+      
+      if (session?.session) {
+        // Save all matches to database for authenticated users
+        for (const match of matches) {
+          await updateMatchScores(
+            match.id,
+            match.sets[0]?.scoreA,
+            match.sets[0]?.scoreB,
+            match.sets[1]?.scoreA,
+            match.sets[1]?.scoreB,
+            match.sets[2]?.scoreA,
+            match.sets[2]?.scoreB,
+            match.completed
+          );
         }
-        if (updated) break;
+        
+        // Reload tournament data to get updated state
+        const updatedTournament = await loadTournament();
+        setTournament(updatedTournament);
+        
+        // Find the updated poule
+        let foundPoule: Poule | null = null;
+        for (const discipline of updatedTournament.disciplines) {
+          for (const level of discipline.levels) {
+            for (const p of level.poules) {
+              if (p.id === pouleId) {
+                foundPoule = p;
+                break;
+              }
+            }
+            if (foundPoule) break;
+          }
+          if (foundPoule) break;
+        }
+        
+        if (foundPoule) {
+          setPoule(foundPoule);
+          setMatches(foundPoule.matches);
+        }
+      } else {
+        // For unauthenticated users, update localStorage
+        const updatedPoule: Poule = { ...poule, matches };
+        
+        // Find and update the poule in the tournament
+        const updatedTournament = { ...tournament };
+        
+        let updated = false;
+        
+        for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+          const discipline = updatedTournament.disciplines[i];
+          for (let j = 0; j < discipline.levels.length; j++) {
+            const level = discipline.levels[j];
+            for (let k = 0; k < level.poules.length; k++) {
+              const p = level.poules[k];
+              if (p.id === poule.id) {
+                updatedTournament.disciplines[i].levels[j].poules[k] = updatedPoule;
+                updated = true;
+                break;
+              }
+            }
+            if (updated) break;
+          }
+          if (updated) break;
+        }
+        
+        if (updated) {
+          await saveTournament(updatedTournament);
+          setTournament(updatedTournament);
+          setPoule(updatedPoule);
+        }
       }
-      if (updated) break;
-    }
-    
-    if (updated) {
-      // Save tournament - ensure this works for both authenticated and unauthenticated users
-      await saveTournament(updatedTournament);
-      setTournament(updatedTournament);
-      setPoule(updatedPoule);
       
       toast({
         title: "All scores saved",
         description: "All match scores have been updated successfully",
       });
+    } catch (error) {
+      console.error('Error saving all matches:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save match scores. Please try again.",
+        variant: "destructive"
+      });
     }
   };
+
+  // Calculate if all matches are completed
+  const allMatchesCompleted = poule ? poule.matches.every(match => match.completed) : false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -336,7 +443,10 @@ const PouleDetails = () => {
             </div>
             
             {/* Winner Card */}
-            <PouleWinnerCard winner={getPouleWinner(poule)} />
+            <PouleWinnerCard 
+              winner={allMatchesCompleted ? getPouleWinner(poule) : null} 
+              allMatchesCompleted={allMatchesCompleted}
+            />
             
             {/* Matches */}
             <div className="space-y-6">
