@@ -1,4 +1,3 @@
-
 import { Match, Poule, SetScore, Team, TeamStanding, Tournament } from '@/types/tournament';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
@@ -456,6 +455,11 @@ export const isSetComplete = (set: SetScore): boolean => {
 export const isMatchComplete = (match: Match): boolean => {
   const { setsWonA, setsWonB } = getSetsWon(match);
   return setsWonA >= 2 || setsWonB >= 2;
+};
+
+// Add the missing areAllMatchesComplete function
+export const areAllMatchesComplete = (poule: Poule): boolean => {
+  return poule.matches.every(match => isMatchComplete(match));
 };
 
 export const getSetsWon = (match: Match): { setsWonA: number; setsWonB: number } => {
