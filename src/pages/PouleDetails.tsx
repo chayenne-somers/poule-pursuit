@@ -192,34 +192,44 @@ const PouleDetails = () => {
           match.completed
         );
         
-        // Reload tournament data to get updated state
-        const updatedTournament = await loadTournament();
-        setTournament(updatedTournament);
+        // Update the local state immediately without reloading from database
+        const updatedMatches = [...matches];
+        updatedMatches[matchIndex] = match;
+        setMatches(updatedMatches);
         
-        // Find the updated poule
-        let foundPoule: Poule | null = null;
-        for (const discipline of updatedTournament.disciplines) {
-          for (const level of discipline.levels) {
-            for (const p of level.poules) {
-              if (p.id === pouleId) {
-                foundPoule = p;
+        // Update the poule state as well
+        const updatedPoule = { ...poule, matches: updatedMatches };
+        setPoule(updatedPoule);
+        
+        // Update tournament state
+        const updatedTournament = { ...tournament };
+        let updated = false;
+        
+        for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+          const discipline = updatedTournament.disciplines[i];
+          for (let j = 0; j < discipline.levels.length; j++) {
+            const level = discipline.levels[j];
+            for (let k = 0; k < level.poules.length; k++) {
+              const p = level.poules[k];
+              if (p.id === poule.id) {
+                updatedTournament.disciplines[i].levels[j].poules[k] = updatedPoule;
+                updated = true;
                 break;
               }
             }
-            if (foundPoule) break;
+            if (updated) break;
           }
-          if (foundPoule) break;
+          if (updated) break;
         }
         
-        if (foundPoule) {
-          setPoule(foundPoule);
-          setMatches(foundPoule.matches);
+        if (updated) {
+          setTournament(updatedTournament);
         }
       } else {
         // For unauthenticated users, update localStorage
         const updatedPoule: Poule = { 
           ...poule, 
-          matches: poule.matches.map((m, i) => i === matchIndex ? matches[matchIndex] : m) 
+          matches: matches.map((m, i) => i === matchIndex ? match : m) 
         };
         
         // Find and update the poule in the tournament
@@ -248,6 +258,7 @@ const PouleDetails = () => {
           await saveTournament(updatedTournament);
           setTournament(updatedTournament);
           setPoule(updatedPoule);
+          setMatches(updatedPoule.matches);
         }
       }
       
@@ -288,28 +299,33 @@ const PouleDetails = () => {
           );
         }
         
-        // Reload tournament data to get updated state
-        const updatedTournament = await loadTournament();
-        setTournament(updatedTournament);
+        // Update the local state immediately
+        const updatedPoule = { ...poule, matches };
+        setPoule(updatedPoule);
         
-        // Find the updated poule
-        let foundPoule: Poule | null = null;
-        for (const discipline of updatedTournament.disciplines) {
-          for (const level of discipline.levels) {
-            for (const p of level.poules) {
-              if (p.id === pouleId) {
-                foundPoule = p;
+        // Update tournament state
+        const updatedTournament = { ...tournament };
+        let updated = false;
+        
+        for (let i = 0; i < updatedTournament.disciplines.length; i++) {
+          const discipline = updatedTournament.disciplines[i];
+          for (let j = 0; j < discipline.levels.length; j++) {
+            const level = discipline.levels[j];
+            for (let k = 0; k < level.poules.length; k++) {
+              const p = level.poules[k];
+              if (p.id === poule.id) {
+                updatedTournament.disciplines[i].levels[j].poules[k] = updatedPoule;
+                updated = true;
                 break;
               }
             }
-            if (foundPoule) break;
+            if (updated) break;
           }
-          if (foundPoule) break;
+          if (updated) break;
         }
         
-        if (foundPoule) {
-          setPoule(foundPoule);
-          setMatches(foundPoule.matches);
+        if (updated) {
+          setTournament(updatedTournament);
         }
       } else {
         // For unauthenticated users, update localStorage

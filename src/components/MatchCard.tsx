@@ -24,15 +24,20 @@ interface MatchCardProps {
 
 const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: MatchCardProps) => {
   const { setsWonA, setsWonB } = getSetsWon(match);
-  const teamAWon = didTeamWinMatch(match, true);
-  const teamBWon = didTeamWinMatch(match, false);
+  const teamAWon = match.completed ? didTeamWinMatch(match, true) : false;
+  const teamBWon = match.completed ? didTeamWinMatch(match, false) : false;
+
+  // Check if any scores have been entered for this match
+  const hasAnyScores = match.sets.some(set => 
+    set.scoreA !== undefined || set.scoreB !== undefined
+  );
 
   return (
     <Card 
       key={match.id} 
       className={`
         ${match.completed ? 'border-2' : 'border'}
-        ${teamAWon ? 'border-green-500' : teamBWon ? 'border-blue-500' : 'border-border'}
+        ${match.completed && teamAWon ? 'border-green-500' : match.completed && teamBWon ? 'border-blue-500' : 'border-border'}
       `}
     >
       <CardHeader className="pb-3">
@@ -71,7 +76,7 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
         
         {/* Team A */}
         <div className="grid grid-cols-3 gap-4 mb-6 items-center">
-          <div className={`${teamAWon ? 'font-semibold text-green-600' : ''}`}>
+          <div className={`${match.completed && teamAWon ? 'font-semibold text-green-600' : ''}`}>
             {match.teamA.players[0].name} & <br />
             {match.teamA.players[1].name}
           </div>
@@ -95,15 +100,15 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
             ))}
           </div>
           <div className="text-center">
-            <span className={`text-lg ${teamAWon ? 'font-bold text-green-600' : ''}`}>
-              {setsWonA}
+            <span className={`text-lg ${match.completed && teamAWon ? 'font-bold text-green-600' : ''}`}>
+              {hasAnyScores ? setsWonA : 0}
             </span> sets won
           </div>
         </div>
         
         {/* Team B */}
         <div className="grid grid-cols-3 gap-4 items-center">
-          <div className={`${teamBWon ? 'font-semibold text-blue-600' : ''}`}>
+          <div className={`${match.completed && teamBWon ? 'font-semibold text-blue-600' : ''}`}>
             {match.teamB.players[0].name} & <br />
             {match.teamB.players[1].name}
           </div>
@@ -127,8 +132,8 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
             ))}
           </div>
           <div className="text-center">
-            <span className={`text-lg ${teamBWon ? 'font-bold text-blue-600' : ''}`}>
-              {setsWonB}
+            <span className={`text-lg ${match.completed && teamBWon ? 'font-bold text-blue-600' : ''}`}>
+              {hasAnyScores ? setsWonB : 0}
             </span> sets won
           </div>
         </div>
