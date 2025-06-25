@@ -10,6 +10,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isSpectator: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   isLoading: true,
   isAdmin: false,
+  isSpectator: false,
   signOut: async () => {},
 });
 
@@ -27,6 +29,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSpectator, setIsSpectator] = useState(false);
+
+  // Check for spectator mode
+  useEffect(() => {
+    const spectatorMode = localStorage.getItem('spectatorMode');
+    setIsSpectator(spectatorMode === 'true');
+  }, []);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -121,6 +130,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     console.log('AuthProvider: Signing out...');
     await supabase.auth.signOut();
+    
+    // Clear spectator mode when signing out
+    localStorage.removeItem('spectatorMode');
+    setIsSpectator(false);
     setProfile(null);
   };
 
@@ -132,6 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     profile,
     isLoading,
     isAdmin,
+    isSpectator,
     signOut,
   };
 

@@ -10,6 +10,7 @@ interface AuthCheckProps {
 const AuthCheck = ({ children }: AuthCheckProps) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [isSpectator, setIsSpectator] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -18,6 +19,14 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     const initializeAuth = async () => {
       try {
         console.log('AuthCheck: Initializing authentication...');
+
+        // Check for spectator mode
+        const spectatorMode = localStorage.getItem('spectatorMode');
+        const isSpectatorMode = spectatorMode === 'true';
+        
+        if (mounted) {
+          setIsSpectator(isSpectatorMode);
+        }
 
         // Check for existing session first
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -72,10 +81,11 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
     console.log("AuthCheck: Auth state updated", { 
       user: user ? "Authenticated" : "Unauthenticated", 
       userId: user?.id,
+      isSpectator,
       path: location.pathname,
       isPouleRoute: location.pathname.startsWith('/poule/')
     });
-  }, [user, location.pathname]);
+  }, [user, isSpectator, location.pathname]);
 
   // All poule routes are public
   const isPouleRoute = location.pathname.startsWith('/poule/');
@@ -95,6 +105,12 @@ const AuthCheck = ({ children }: AuthCheckProps) => {
 
   // Poule pages are accessible without authentication
   if (isPouleRoute) {
+    return children ? <>{children}</> : <Outlet />;
+  }
+
+  // Allow spectator access to main content
+  if (isSpectator) {
+    console.log('AuthCheck: Spectator access granted');
     return children ? <>{children}</> : <Outlet />;
   }
 

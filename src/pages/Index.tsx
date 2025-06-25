@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 const Index = () => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, isSpectator } = useAuth();
 
   useEffect(() => {
     const fetchTournament = async () => {
@@ -27,7 +27,9 @@ const Index = () => {
           setTournament(data);
         } else {
           // If we don't have valid data, save and use the initialized tournament
-          await saveTournament(newTournament);
+          if (user) {
+            await saveTournament(newTournament);
+          }
           setTournament(newTournament);
         }
       } catch (error) {
@@ -40,10 +42,11 @@ const Index = () => {
       }
     };
     
-    if (user) {
+    // Allow both authenticated users and spectators to view the tournament
+    if (user || isSpectator) {
       fetchTournament();
     }
-  }, [user]);
+  }, [user, isSpectator]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -51,9 +54,14 @@ const Index = () => {
       
       <main className="container px-4 pt-24 pb-16 mx-auto">
         <div className="mb-12 text-center animate-fade-in">
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Tournament Manager</h1>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">
+            Tournament {isSpectator ? 'Overview' : 'Manager'}
+          </h1>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            View all disciplines, levels, and poules in the tournament. Click on a poule to see matches and scores.
+            {isSpectator 
+              ? 'View all disciplines, levels, and poules in the tournament. Click on a poule to see matches and scores.'
+              : 'View all disciplines, levels, and poules in the tournament. Click on a poule to see matches and scores.'
+            }
           </p>
         </div>
         
@@ -66,7 +74,10 @@ const Index = () => {
             </div>
           </div>
         ) : tournament && tournament.disciplines ? (
-          <TournamentStructure disciplines={tournament.disciplines} />
+          <TournamentStructure 
+            disciplines={tournament.disciplines} 
+            isAdmin={false} // Spectators never have admin privileges
+          />
         ) : (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No tournament data found.</p>

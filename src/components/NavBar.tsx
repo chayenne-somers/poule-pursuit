@@ -5,7 +5,7 @@ import AuthNavBar from './AuthNavBar';
 import { useAuth } from '@/hooks/use-auth';
 
 const NavBar = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSpectator } = useAuth();
   const location = useLocation();
   const isPouleRoute = location.pathname.startsWith('/poule/');
 
@@ -19,18 +19,25 @@ const NavBar = () => {
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
-            {/* Only show Home button for authenticated users */}
-            {user && (
+            {/* Show Home button for authenticated users and spectators */}
+            {(user || isSpectator) && (
               <Button variant="ghost" asChild>
                 <Link to="/">Home</Link>
               </Button>
             )}
             
-            {/* Only show Admin button for admin users */}
-            {user && isAdmin && (
+            {/* Only show Admin button for admin users (not spectators) */}
+            {user && isAdmin && !isSpectator && (
               <Button variant="ghost" asChild>
                 <Link to="/admin">Admin</Link>
               </Button>
+            )}
+            
+            {/* Show spectator indicator */}
+            {isSpectator && (
+              <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
+                Spectator Mode
+              </span>
             )}
             
             {/* Always show Auth section */}

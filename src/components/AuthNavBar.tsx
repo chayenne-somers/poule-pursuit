@@ -10,14 +10,19 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Users } from 'lucide-react';
 
 const AuthNavBar = () => {
-  const { user, signOut } = useAuth();
+  const { user, isSpectator, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
+    navigate('/auth');
+  };
+
+  const handleExitSpectatorMode = () => {
+    localStorage.removeItem('spectatorMode');
     navigate('/auth');
   };
 
@@ -38,6 +43,24 @@ const AuthNavBar = () => {
             <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : isSpectator ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Users className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              Spectator
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleExitSpectatorMode} className="cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Exit Spectator Mode</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

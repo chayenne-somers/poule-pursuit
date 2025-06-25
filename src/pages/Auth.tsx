@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Users } from 'lucide-react';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -168,6 +167,21 @@ const Auth = () => {
     }
   };
 
+  const handleContinueAsSpectator = () => {
+    console.log('Auth: Continuing as spectator');
+    
+    // Set spectator mode in localStorage
+    localStorage.setItem('spectatorMode', 'true');
+    
+    toast({
+      title: "Welcome, Spectator!",
+      description: "You can now view all tournament data in read-only mode.",
+    });
+    
+    // Navigate to tournament overview
+    navigate('/', { replace: true });
+  };
+
   const toggleShowPassword = () => {
     setShowPassword(!showPassword);
   };
@@ -302,6 +316,30 @@ const Auth = () => {
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* Spectator Option */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              className="w-full mt-4" 
+              onClick={handleContinueAsSpectator}
+              disabled={isLoading}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Continue as Spectator
+            </Button>
+          </div>
         </CardContent>
         <CardFooter className="flex flex-col">
           <p className="text-sm text-muted-foreground text-center mt-2">
