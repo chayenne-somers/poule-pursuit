@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { 
@@ -45,17 +44,17 @@ const PouleDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isSpectator } = useAuth();
   const location = useLocation();
 
   // Debug the current route
   useEffect(() => {
     console.log("PouleDetails: Current route", location.pathname);
     console.log("PouleDetails: User authenticated:", user ? "Yes" : "No");
+    console.log("PouleDetails: Is spectator:", isSpectator);
     console.log("PouleDetails: Poule ID:", pouleId);
-  }, [location, user, pouleId]);
+  }, [location, user, isSpectator, pouleId]);
 
-  // Load tournament data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -144,8 +143,10 @@ const PouleDetails = () => {
     fetchData();
   }, [pouleId]);
 
-  // Handle score changes
+  // Handle score changes - only allow if not spectator
   const handleScoreChange = (matchIndex: number, setIndex: number, team: 'A' | 'B', value: string) => {
+    if (isSpectator) return; // Spectators cannot edit scores
+    
     const updatedMatches = [...matches];
     const match = { ...updatedMatches[matchIndex] };
     
@@ -169,8 +170,9 @@ const PouleDetails = () => {
     setMatches(updatedMatches);
   };
 
-  // Save scores for a specific match
+  // Save scores for a specific match - only allow if not spectator
   const handleSaveMatch = async (matchIndex: number) => {
+    if (isSpectator) return; // Spectators cannot save scores
     if (!tournament || !poule) return;
     
     try {
@@ -276,8 +278,9 @@ const PouleDetails = () => {
     }
   };
 
-  // Save all matches
+  // Save all matches - only allow if not spectator
   const handleSaveScores = async () => {
+    if (isSpectator) return; // Spectators cannot save scores
     if (!tournament || !poule) return;
     
     try {
@@ -397,7 +400,7 @@ const PouleDetails = () => {
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-            {user ? (
+            {user || isSpectator ? (
               <Button variant="outline" asChild>
                 <Link to="/">
                   <ChevronLeft className="h-4 w-4 mr-2" />
@@ -418,7 +421,7 @@ const PouleDetails = () => {
             <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  {user && (
+                  {(user || isSpectator) && (
                     <>
                       <Link to="/" className="hover:underline">Home</Link>
                       <ArrowRight className="h-3 w-3" />
@@ -431,12 +434,13 @@ const PouleDetails = () => {
                 <h1 className="text-4xl font-bold tracking-tight mb-1">Poule {poule.name}</h1>
                 <p className="text-muted-foreground">
                   {poule.teams.length} teams, {poule.matches.length} matches
+                  {isSpectator && <span className="ml-2 text-orange-600">(Read-only view)</span>}
                 </p>
               </div>
               
               <div className="flex gap-3">
-                {/* Only show Back to Tournament button for authenticated users */}
-                {user && (
+                {/* Show Back to Tournament button for authenticated users and spectators */}
+                {(user || isSpectator) && (
                   <Button variant="outline" asChild>
                     <Link to="/">
                       <ChevronLeft className="h-4 w-4 mr-2" />
@@ -445,11 +449,13 @@ const PouleDetails = () => {
                   </Button>
                 )}
                 
-                {/* Always show Save All Scores button for any user */}
-                <Button onClick={handleSaveScores}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save All Scores
-                </Button>
+                {/* Only show Save All Scores button for non-spectators */}
+                {!isSpectator && (
+                  <Button onClick={handleSaveScores}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save All Scores
+                  </Button>
+                )}
               </div>
             </div>
             
@@ -473,7 +479,8 @@ const PouleDetails = () => {
                   key={match.id}
                   match={match}
                   matchIndex={matchIndex}
-                  isAdmin={true} // Allow all users to update scores
+                  isAdmin={true}
+                  isSpectator={isSpectator}
                   onScoreChange={handleScoreChange}
                   onSaveMatch={handleSaveMatch}
                 />
@@ -485,7 +492,7 @@ const PouleDetails = () => {
             <div className="text-center">
               <h2 className="text-xl font-medium mb-2">Poule not found</h2>
               <p className="text-muted-foreground mb-4">The poule you're looking for doesn't exist or has been removed.</p>
-              {user ? (
+              {user || isSpectator ? (
                 <Button variant="outline" asChild>
                   <Link to="/">
                     <ChevronLeft className="h-4 w-4 mr-2" />

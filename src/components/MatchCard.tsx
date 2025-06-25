@@ -18,11 +18,12 @@ interface MatchCardProps {
   match: Match;
   matchIndex: number;
   isAdmin: boolean;
+  isSpectator?: boolean;
   onScoreChange: (matchIndex: number, setIndex: number, team: 'A' | 'B', value: string) => void;
   onSaveMatch: (matchIndex: number) => void;
 }
 
-const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: MatchCardProps) => {
+const MatchCard = ({ match, matchIndex, isAdmin, isSpectator = false, onScoreChange, onSaveMatch }: MatchCardProps) => {
   const { setsWonA, setsWonB } = getSetsWon(match);
   const teamAWon = match.completed ? didTeamWinMatch(match, true) : false;
   const teamBWon = match.completed ? didTeamWinMatch(match, false) : false;
@@ -31,6 +32,9 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
   const hasAnyScores = match.sets.some(set => 
     set.scoreA !== undefined || set.scoreB !== undefined
   );
+
+  // Spectators cannot edit scores
+  const canEdit = isAdmin && !isSpectator;
 
   return (
     <Card 
@@ -50,7 +54,7 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
                 Completed
               </Badge>
             )}
-            {isAdmin && (
+            {canEdit && (
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -83,7 +87,7 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
           <div className="flex justify-center gap-2">
             {match.sets.map((set, setIndex) => (
               <div key={setIndex} className="w-14">
-                {isAdmin ? (
+                {canEdit ? (
                   <Input
                     type="number"
                     min="0"
@@ -92,7 +96,7 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
                     className="h-8 text-center"
                   />
                 ) : (
-                  <div className="border rounded px-2 py-1 text-center">
+                  <div className="border rounded px-2 py-1 text-center bg-muted">
                     {set.scoreA !== undefined ? set.scoreA : '-'}
                   </div>
                 )}
@@ -115,7 +119,7 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
           <div className="flex justify-center gap-2">
             {match.sets.map((set, setIndex) => (
               <div key={setIndex} className="w-14">
-                {isAdmin ? (
+                {canEdit ? (
                   <Input
                     type="number"
                     min="0"
@@ -124,7 +128,7 @@ const MatchCard = ({ match, matchIndex, isAdmin, onScoreChange, onSaveMatch }: M
                     className="h-8 text-center"
                   />
                 ) : (
-                  <div className="border rounded px-2 py-1 text-center">
+                  <div className="border rounded px-2 py-1 text-center bg-muted">
                     {set.scoreB !== undefined ? set.scoreB : '-'}
                   </div>
                 )}
